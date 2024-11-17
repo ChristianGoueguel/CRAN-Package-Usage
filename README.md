@@ -12,7 +12,7 @@ select the packages you're interested in, and press the
 and insights.
 
 Access the app here:
-<http://christian-goueguel.shinyapps.io/CRAN-Package-Download>
+<https://christian-goueguel.shinyapps.io/cran-package-usage/>
 
 **Example 1:** Download trends for the `ggplot2` and `dplyr` packages
 over the period from **November 15, 2023**, to **November 15, 2024**,
