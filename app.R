@@ -199,7 +199,7 @@ server <- function(input, output, session) {
       scale_color_brewer(palette = "Set1") +
       labs(
         x = NULL,
-        y = "Downloads",
+        y = NULL,
         title = paste(stringr::str_to_title(input$time_unit), "Downloads")) +
       theme_dark(base_size = 15) +
       theme(
@@ -230,7 +230,7 @@ server <- function(input, output, session) {
       scale_color_brewer(palette = "Set1") +
       labs(
         x = NULL,
-        y = "Downloads",
+        y = NULL,
         title = "Cumulative Downloads"
         ) +
       theme_dark(base_size = 15) +

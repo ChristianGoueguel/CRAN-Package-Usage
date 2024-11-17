@@ -14,14 +14,10 @@ and insights.
 Access the app here:
 <https://christian-goueguel.shinyapps.io/cran-package-usage/>
 
-**Example 1:** Download trends for the `ggplot2` and `dplyr` packages
-over the period from **November 15, 2023**, to **November 15, 2024**,
+**Example 1:** Download trends for the `ggplot2`, `dplyr`, `rlang`, `Rcpp`, and `glue` packages
+over the period from **January 1, 2020**, to **January 1, 2024**,
 highlighting usage patterns and insights across this time frame.
 
 ![](Images/app_image.png)
-
-**Example 2:** Download trends for the `Rcpp`, `rlang`, `cli`,
-`lifecycle`, `glue`, and `tidyverse` packages over the period from
-**December 31, 2020**, to **January 1, 2024**.
 
 ![](Images/app_image2.png)
