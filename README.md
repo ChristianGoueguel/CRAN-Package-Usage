@@ -21,3 +21,5 @@ highlighting usage patterns and insights across this time frame.
 ![](Images/app_image.png)
 
 ![](Images/app_image2.png)
+
+![](Images/app_image3.png)

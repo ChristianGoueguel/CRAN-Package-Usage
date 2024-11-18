@@ -130,7 +130,7 @@ ui <- fluidPage(
       )
     )
   )
-
+################################################################################
 server <- function(input, output, session) {
   pkg_db <- reactive({
     as.data.frame(available.packages(repos = "https://cloud.r-project.org"))
@@ -149,8 +149,12 @@ server <- function(input, output, session) {
       )
     })
 
-  # Function to get download stats
+  ############################################  
+  # Function to get package(s) download number
+  ############################################
+  
   get_download_stats <- eventReactive(input$submit, {
+    
     req(input$package_name)
     from_date <- input$from_date
     to_date <- input$to_date
@@ -180,16 +184,23 @@ server <- function(input, output, session) {
       )
   })
   
-  # Plot the downloads based on selected time unit
+  ######################################################
+  # Plot package(s) download based on selected time unit
+  ######################################################
+  
   output$download_plot <- renderPlot({
+    
     req(get_download_stats())
+    
     data <- get_download_stats()
+    
     time_group <- switch(
       input$time_unit,
       "daily" = "date",
       "weekly" = "weekly",
       "monthly" = "monthly"
       )
+    
     data %>%
       group_by(package, !!sym(time_group)) %>%
       summarise(count = sum(count), .groups = "drop") %>%
@@ -217,9 +228,14 @@ server <- function(input, output, session) {
       )
   })
   
-  # Plot total downloads
+  ################################
+  # Plot total package(s) download
+  ################################
+  
   output$total_downloads <- renderPlot({
+    
     req(get_download_stats())
+    
     get_download_stats() %>%
       group_by(package) %>%
       arrange(date) %>%
@@ -249,86 +265,97 @@ server <- function(input, output, session) {
       )
   })
   
-  # Display package metadata
-  output$package_info <- renderDT({
-    req(input$package_name)
-    safe_get_info <- function(pkg_name) {
-      tryCatch({
-        pkg_info <- pkg_db()[pkg_db()$Package == pkg_name, , drop = FALSE]
-        if(nrow(pkg_info) == 0) {
-          return(
-            data.frame(
-              Package = pkg_name,
-              Version = "Not found",
-              Published = as.Date(NA),
-              Title = "Not found",
-              Author = "Not found",
-              Maintainer = "Not found",
-              License = "Not found",
-              NeedsCompilation = "Unknown",
-              stringsAsFactors = FALSE
-              )
-            )
-          }
-        
-        # Safe getter function
-        safe_get <- function(field, default = "Unknown") {
-          val <- pkg_info[[field]]
-          if(is.null(val) || all(is.na(val)) || length(val) == 0) {
-            return(default)
-          }
-          return(val[1])
-        }
-        
-        # Create data frame with proper handling of each field
-        data.frame(
-          Package = pkg_name,
-          Version = safe_get("Version"),
-          Published = as.Date(safe_get("Published", NA)),
-          Title = safe_get("Title"),
-          Author = safe_get("Author"),
-          Maintainer = safe_get("Maintainer"),
-          License = safe_get("License"),
-          NeedsCompilation = safe_get("NeedsCompilation"),
-          stringsAsFactors = FALSE,
-          check.names = FALSE
-          )
-        }, 
-        error = function(e) {
+  ######################
+  # Package(s) Metadata
+  ######################
+  
+  get_package_info <- function(pkg_name) {
+    
+    tryCatch({
+      
+      pkg_info <- pkgsearch::cran_packages(pkg_name)
+      
+      if(nrow(pkg_info) == 0) {
+        return(
           data.frame(
             Package = pkg_name,
-            Version = "Error",
-            Published = as.Date(NA),
-            Title = "Error retrieving package information",
-            Author = "Unknown",
-            Maintainer = "Unknown",
-            License = "Unknown",
+            Version = "Not found",
+            Title = "Not found",
+            Maintainer = "Not found",
+            License = "Not found",
             NeedsCompilation = "Unknown",
-            stringsAsFactors = FALSE,
-            check.names = FALSE
+            `Date/Publication` = as.Date(NA),
+            stringsAsFactors = FALSE
           )
-          }
         )
       }
-    
-    # Get info for all selected packages
-    info_list <- lapply(input$package_name, safe_get_info)
+      
+      safe_get <- function(field, default = "Unknown") {
+        val <- pkg_info[[field]]
+        if(is.null(val) || all(is.na(val)) || length(val) == 0) {
+          return(default)
+        }
+        return(val[1])
+      }
+      
+      data.frame(
+        Package = pkg_name,
+        Version = safe_get("Version"),
+        Title = safe_get("Title"),
+        Maintainer = safe_get("Maintainer"),
+        License = safe_get("License"),
+        NeedsCompilation = safe_get("NeedsCompilation"),
+        `Date/Publication` = as.Date(safe_get("Date/Publication", NA)),
+        stringsAsFactors = FALSE,
+        check.names = FALSE
+      )
+    }, 
+    error = function(e) {
+      data.frame(
+        Package = pkg_name,
+        Version = "Error",
+        Title = "Error retrieving package information",
+        Maintainer = "Unknown",
+        License = "Unknown",
+        NeedsCompilation = "Unknown",
+        `Date/Publication` = as.Date(NA),
+        stringsAsFactors = FALSE,
+        check.names = FALSE
+      )
+    })
+  }
+  
+  output$package_info <- renderDT({
+
+    info_list <- lapply(input$package_name, get_package_info)
     info_df <- do.call(rbind, info_list)
     
-    # Ensure all character columns
-    char_cols <- setdiff(names(info_df), "Published")
+    char_cols <- setdiff(names(info_df), "Date/Publication")
     info_df[char_cols] <- lapply(info_df[char_cols], as.character)
     
-    # Create the datatable
     DT::datatable(
       info_df,
       options = list(
         pageLength = 10,
         dom = 't',
-        scrollX = TRUE
+        scrollX = TRUE,
+        columnDefs = list(
+          list(
+            targets = which(names(info_df) == "Description"),
+            width = "300px",
+            render = DT::JS(
+              "function(data, type, row) {
+              if (type === 'display' && data != null) {
+                return '<div style=\"max-width: 300px; white-space: normal;\">' + data + '</div>';
+              }
+              return data;
+            }"
+            )
+          )
+        )
       ),
       rownames = FALSE,
-      escape = FALSE  # Allow HTML in cells if present
+      escape = FALSE
     ) %>%
       DT::formatStyle(
         columns = names(info_df),
@@ -336,10 +363,14 @@ server <- function(input, output, session) {
         color = "white"
       ) %>%
       DT::formatDate(
-        columns = "Published",
+        columns = "Date/Publication",
         method = "toLocaleDateString"
       )
   })
+  
+  #####################
+  # Package(s) Network
+  #####################
   
   # Get recursive dependencies
   get_recursive_deps <- reactive({
@@ -501,22 +532,22 @@ server <- function(input, output, session) {
       )
   })
   
-  # Display package dependencies
+  #########################
+  # Package(s) Dependencies
+  #########################
+  
   output$package_deps <- renderDT({
+    
     req(input$package_name)
     
-    # Create a function to safely get dependencies
     get_deps <- function(pkg, dep_type) {
-      deps <- tools::package_dependencies(
-        pkg, 
-        db = pkg_db(), 
-        which = dep_type
-        )[[1]]
+
+      deps <- tools::package_dependencies(pkg, db = pkg_db(), which = dep_type)[[1]]
       if(is.null(deps)) return("None")
       paste(deps, collapse = ", ")
+      
     }
     
-    # Create dependency data frame for all packages
     deps_list <- lapply(input$package_name, function(pkg) {
       data.frame(
         Package = rep(pkg, 3),
@@ -529,7 +560,6 @@ server <- function(input, output, session) {
       )
     })
     
-    # Combine all dependencies into one data frame
     deps_df <- do.call(rbind, deps_list)
     
     DT::datatable(
@@ -548,8 +578,12 @@ server <- function(input, output, session) {
       )
   })
   
-  # Display the download statistics summary
+  ##############################
+  # Package(s) Download Summary
+  ##############################
+  
   output$download_summary <- renderText({
+    
     req(get_download_stats())
     data <- get_download_stats()
     
@@ -581,3 +615,6 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server)
+
+
+
