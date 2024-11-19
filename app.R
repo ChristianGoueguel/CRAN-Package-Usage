@@ -10,7 +10,8 @@ library(tools)
 library(plotly)
 library(DT)
 library(igraph)
-library(visNetwork)
+library(colourpicker)
+
 
 ################################################################################
 
@@ -165,6 +166,7 @@ server <- function(input, output, session) {
       )
   })
   
+  
   ######################################################
   # Plot package(s) download based on selected time unit
   ######################################################
@@ -182,13 +184,16 @@ server <- function(input, output, session) {
       "monthly" = "monthly"
       )
     
+    unique_packages <- unique(data$package)
+    palette <- createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
+    
     data %>%
       group_by(package, !!sym(time_group)) %>%
       summarise(count = sum(count), .groups = "drop") %>%
       ggplot() +
       aes(x = !!sym(time_group), y = count, color = package) +
       geom_line(linewidth = 1) +
-      scale_color_brewer(palette = "Set1") +
+      scale_color_manual(values = setNames(palette, unique_packages)) +
       labs(
         x = NULL,
         y = NULL,
@@ -218,14 +223,19 @@ server <- function(input, output, session) {
     
     req(get_download_stats())
     
-    get_download_stats() %>%
+    data <- get_download_stats()
+    unique_packages <- unique(data$package)
+    palette <- createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
+    
+    data %>%
       group_by(package) %>%
       arrange(date) %>%
       mutate(cumulative = cumsum(count)) %>% 
       ggplot() +
       aes(x = date, y = cumulative, color = package) +
       geom_line(linewidth = 1) +
-      scale_color_brewer(palette = "Set1") +
+      #scale_color_brewer(palette = "Set1") +
+      scale_color_manual(values = setNames(palette, unique_packages)) +
       labs(
         x = NULL,
         y = NULL,
