@@ -58,28 +58,6 @@ ui <- fluidPage(
         "submit", "Get Download Stats",
         class = "btn-primary"
         ),
-      conditionalPanel(
-        condition = "input.tabset === 'Network'",
-        checkboxGroupInput(
-          "dep_types", 
-          "Dependency Types:",
-          choices = c("Depends", "Imports", "Suggests", "Enhances"),
-          selected = c("Depends", "Imports")
-          ),
-        sliderInput(
-          "network_depth", 
-          "Dependency Depth:",
-          min = 1, 
-          max = 3, 
-          value = 1, 
-          step = 1
-          ),
-        actionButton(
-          "refresh_network", 
-          "Refresh Network",
-          class = "btn-primary"
-          )
-      ),
       h3("Summary"),
       tags$div(
         style = "height: 350px; overflow-y: scroll;",
@@ -120,7 +98,10 @@ ui <- fluidPage(
           fluidRow(
             column(
               12,
-              visNetworkOutput("package_deps_network", height = "600px")
+              div(
+                style = "background-color: black; padding: 20px; border-radius: 5px;",
+                visNetworkOutput("package_deps_network", height = "600px")
+                )
               )
             )
           )
@@ -435,11 +416,9 @@ server <- function(input, output, session) {
     }
     
     edges_list <- lapply(input$package_name, function(pkg) {
-      depends <- get_deps(pkg, "Depends")
       imports <- get_deps(pkg, "Imports")
       suggests <- get_deps(pkg, "Suggests")
       rbind(
-        if(length(depends) > 0) data.frame(from = pkg, to = depends, type = "Depends", color = "red"),
         if(length(imports) > 0) data.frame(from = pkg, to = imports, type = "Imports", color = "blue"),
         if(length(suggests) > 0) data.frame(from = pkg, to = suggests, type = "Suggests", color = "green")
       )
@@ -455,13 +434,15 @@ server <- function(input, output, session) {
       value = sapply(all_packages, function(pkg) {
         sum(edges_df$from == pkg | edges_df$to == pkg)
       }),
-      color = ifelse(all_packages %in% input$package_name, "#1f77b4", "#7f7f7f"),
-      title = all_packages
+      color = ifelse(all_packages %in% input$package_name, "#cd0101", "gold"),
+      font.color = ifelse(all_packages %in% input$package_name, "white", "white"),
+      title = paste("<p style='color: black;'>", all_packages, "</p>")
     )
     
-    visNetwork(nodes_df, edges_df) %>%
+    visNetwork(nodes_df, edges_df, background = "black") %>%
       visEdges(
         arrows = "to"
+        #smooth = list(enabled = TRUE, type = "curvedCW")
       ) %>%
       visPhysics(
         solver = "forceAtlas2Based",
@@ -483,16 +464,17 @@ server <- function(input, output, session) {
       ) %>%
       visLegend(
         addNodes = data.frame(
-          label = c("Selected Package", "Dependency"),
-          color = c("#1f77b4", "#7f7f7f"),
-          shape = "dot"
+          label = c("Package", "Dependency"),
+          color = c("#cd0101", "gold"),
+          shape = "dot",
+          font.color = "white"
         ),
         addEdges = data.frame(
-          label = c("Depends", "Imports", "Suggests"),
-          color = c("red", "blue", "green")
+          label = c("Imports", "Suggests"),
+          color = c("blue", "green")
         ),
         useGroups = FALSE,
-        width = 0.1
+        width = 0.2
       ) %>%
       visInteraction(
         dragNodes = TRUE,
