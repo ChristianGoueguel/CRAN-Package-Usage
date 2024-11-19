@@ -34,7 +34,7 @@ ui <- fluidPage(
         "package_name", "Select CRAN Packages:",
         choices = NULL,
         multiple = TRUE,
-        options = list(maxItems = 10)
+        options = list(maxItems = 20)
         ),
       radioButtons(
         "time_unit", "Time Unit:",
@@ -56,7 +56,7 @@ ui <- fluidPage(
         max = Sys.Date()
         ),
       actionButton(
-        "submit", "Get Download Stats",
+        "submit", "Start",
         class = "btn-primary"
         ),
       h3("Summary"),
@@ -125,7 +125,7 @@ server <- function(input, output, session) {
       selected = c("ggplot2", "dplyr", "rlang", "Rcpp", "glue"),
       server = TRUE,
       options = list(
-        maxItems = 10,
+        maxItems = 20,
         placeholder = 'Select packages'
         )
       )
@@ -234,7 +234,6 @@ server <- function(input, output, session) {
       ggplot() +
       aes(x = date, y = cumulative, color = package) +
       geom_line(linewidth = 1) +
-      #scale_color_brewer(palette = "Set1") +
       scale_color_manual(values = setNames(palette, unique_packages)) +
       labs(
         x = NULL,
@@ -329,7 +328,7 @@ server <- function(input, output, session) {
     DT::datatable(
       info_df,
       options = list(
-        pageLength = 10,
+        pageLength = 20,
         dom = 't',
         scrollX = TRUE,
         columnDefs = list(
@@ -395,7 +394,7 @@ server <- function(input, output, session) {
     DT::datatable(
       deps_df,
       options = list(
-        pageLength = 15,
+        pageLength = 60,
         dom = 't',
         scrollX = TRUE
       ),
@@ -429,8 +428,8 @@ server <- function(input, output, session) {
       imports <- get_deps(pkg, "Imports")
       suggests <- get_deps(pkg, "Suggests")
       rbind(
-        if(length(imports) > 0) data.frame(from = pkg, to = imports, type = "Imports", color = "blue"),
-        if(length(suggests) > 0) data.frame(from = pkg, to = suggests, type = "Suggests", color = "green")
+        if(length(imports) > 0) data.frame(from = pkg, to = imports, type = "Imports", color = "#fa05c9"),
+        if(length(suggests) > 0) data.frame(from = pkg, to = suggests, type = "Suggests", color = "#b4f502")
       )
     })
     
@@ -481,7 +480,7 @@ server <- function(input, output, session) {
         ),
         addEdges = data.frame(
           label = c("Imports", "Suggests"),
-          color = c("blue", "green")
+          color = c("#fa05c9", "#b4f502")
         ),
         useGroups = FALSE,
         width = 0.2
@@ -516,7 +515,7 @@ server <- function(input, output, session) {
       sapply(1:nrow(summary_stats), function(i) {
         stats <- summary_stats[i, ]
         sprintf(
-          "Package: %s\nTotal Downloads: %s\nAverage Downloads per Day: %s\nAverage Downloads per Week: %s\nAverage Downloads per Month: %s\n\n",
+          "Package: %s\nCumulative Downloads: %s\nAverage Downloads per Day: %s\nAverage Downloads per Week: %s\nAverage Downloads per Month: %s\n\n",
           stats$package,
           stats$total_downloads,
           stats$avg_downloads_per_day,
