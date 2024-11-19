@@ -5,7 +5,7 @@ account: christian-goueguel
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 13361322
-bundleId: 9383090
+bundleId: 9384740
 url: https://christian-goueguel.shinyapps.io/cran-package-usage/
 version: 1
 asMultiple: FALSE
