@@ -9,7 +9,10 @@ library(purrr)
 library(tools)
 library(plotly)
 library(DT)
+library(igraph)
 library(visNetwork)
+
+################################################################################
 
 ui <- fluidPage(
   theme = bslib::bs_theme(version = 4, bootswatch = "darkly"),
@@ -116,13 +119,8 @@ ui <- fluidPage(
           br(),
           fluidRow(
             column(
-              12, 
-              h3("Package Dependency Network"), 
-              div(
-                style = "position: relative;",
-                visNetworkOutput("dep_network", height = "800px")
-                ), 
-              verbatimTextOutput("network_debug")
+              12,
+              visNetworkOutput("package_deps_network", height = "600px")
               )
             )
           )
@@ -130,7 +128,9 @@ ui <- fluidPage(
       )
     )
   )
+
 ################################################################################
+
 server <- function(input, output, session) {
   pkg_db <- reactive({
     as.data.frame(available.packages(repos = "https://cloud.r-project.org"))
@@ -228,6 +228,7 @@ server <- function(input, output, session) {
       )
   })
   
+  
   ################################
   # Plot total package(s) download
   ################################
@@ -264,6 +265,7 @@ server <- function(input, output, session) {
         legend.position = "none"
       )
   })
+  
   
   ######################
   # Package(s) Metadata
@@ -368,169 +370,6 @@ server <- function(input, output, session) {
       )
   })
   
-  #####################
-  # Package(s) Network
-  #####################
-  
-  # Get recursive dependencies
-  get_recursive_deps <- reactive({
-    req(input$package_name, input$dep_types)
-    
-    # Initialize empty data structures
-    nodes <- data.frame(
-      id = character(),
-      label = character(),
-      level = numeric(),
-      group = character(),
-      stringsAsFactors = FALSE
-    )
-    
-    edges <- data.frame(
-      from = character(),
-      to = character(),
-      type = character(),
-      stringsAsFactors = FALSE
-    )
-    
-    visited <- character()
-    
-    add_deps <- function(pkg, depth = 0) {
-      if(depth > input$network_depth || pkg %in% visited) {
-        return()
-      }
-      
-      visited <<- c(visited, pkg)
-      
-      # Always add the current package as a node
-      if(!pkg %in% nodes$id) {
-        new_node <- data.frame(
-          id = pkg,
-          label = pkg,
-          level = depth,
-          group = ifelse(pkg %in% input$package_name, "selected", "dependency"),
-          stringsAsFactors = FALSE
-        )
-        nodes <<- rbind(nodes, new_node)
-      }
-      
-      # Process each dependency type
-      for(dep_type in input$dep_types) {
-        # Safely get dependencies
-        deps <- tryCatch({
-          pkg_deps <- tools::package_dependencies(
-            pkg, 
-            db = pkg_db(), 
-            which = dep_type
-            )[[1]]
-          if(is.null(pkg_deps)) character(0) else pkg_deps
-        }, error = function(e) {
-          warning(
-            sprintf(
-              "Error getting dependencies for package %s: %s", 
-              pkg, 
-              e$message
-              )
-            )
-          character(0)
-          }
-        )
-        
-        # If there are dependencies, add edges and process them
-        if(length(deps) > 0) {
-          # Create edges data frame
-          new_edges <- data.frame(
-            from = rep(pkg, length(deps)),
-            to = deps,
-            type = rep(dep_type, length(deps)),
-            stringsAsFactors = FALSE
-          )
-          edges <<- rbind(edges, new_edges)
-          # Recursively process each dependency
-          lapply(deps, function(d) add_deps(d, depth + 1))
-        }
-      }
-    }
-    
-    # Process each selected package
-    lapply(input$package_name, function(pkg) add_deps(pkg))
-    # Ensure we have at least the selected packages as nodes
-    if(nrow(nodes) == 0) {
-      nodes <- data.frame(
-        id = input$package_name,
-        label = input$package_name,
-        level = 0,
-        group = "selected",
-        stringsAsFactors = FALSE
-      )
-    }
-    list(
-      nodes = unique(nodes),
-      edges = unique(edges)
-    )
-  })
-  
-  # Render the network visualization with improved error handling
-  output$dep_network <- renderVisNetwork({
-    req(get_recursive_deps())
-    deps <- get_recursive_deps()
-    
-    # Create the network with error checking
-    visNetwork(
-      nodes = deps$nodes,
-      edges = deps$edges
-    ) %>%
-      visGroups(groupname = "selected", color = "#ff7f0e") %>%
-      visGroups(groupname = "dependency", color = "#1f77b4") %>%
-      visEdges(
-        arrows = "to",
-        color = list(
-          color = "#666666",
-          highlight = "#ff3333"
-        )
-      ) %>%
-      visOptions(
-        highlightNearest = list(
-          enabled = TRUE,
-          degree = 1,
-          hover = TRUE
-        ),
-        nodesIdSelection = TRUE
-      ) %>%
-      visLayout(
-        randomSeed = 123,
-        improvedLayout = TRUE
-      ) %>%
-      visPhysics(
-        solver = "forceAtlas2Based",
-        forceAtlas2Based = list(
-          gravitationalConstant = -50,
-          centralGravity = 0.01,
-          springLength = 100,
-          springConstant = 0.08
-        ),
-        stabilization = list(
-          enabled = TRUE,
-          iterations = 1000
-        )
-      ) %>%
-      visInteraction(
-        hideEdgesOnDrag = TRUE,
-        hover = TRUE
-      ) %>%
-      addFontAwesome() %>%
-      visLegend(
-        width = 0.1,
-        position = "left",
-        main = "Package Types",
-        addNodes = list(
-          list(label = "Selected Package", group = "selected"),
-          list(label = "Dependency", group = "dependency")
-        ),
-        addEdges = list(
-          list(label = "Depends/Imports", color = "#666666")
-        )
-      )
-  })
   
   #########################
   # Package(s) Dependencies
@@ -575,6 +414,90 @@ server <- function(input, output, session) {
         columns = names(deps_df),
         backgroundColor = "rgb(25, 25, 25)",
         color = "white"
+      )
+  })
+  
+  
+  
+  #####################
+  # Package(s) Network
+  #####################
+  
+  # Function to include network visualization
+  output$package_deps_network <- renderVisNetwork({
+    
+    req(input$package_name)
+    
+    get_deps <- function(pkg, dep_type) {
+      deps <- tools::package_dependencies(pkg, db = pkg_db(), which = dep_type)[[1]]
+      if(is.null(deps)) return(character(0))
+      deps
+    }
+    
+    edges_list <- lapply(input$package_name, function(pkg) {
+      depends <- get_deps(pkg, "Depends")
+      imports <- get_deps(pkg, "Imports")
+      suggests <- get_deps(pkg, "Suggests")
+      rbind(
+        if(length(depends) > 0) data.frame(from = pkg, to = depends, type = "Depends", color = "red"),
+        if(length(imports) > 0) data.frame(from = pkg, to = imports, type = "Imports", color = "blue"),
+        if(length(suggests) > 0) data.frame(from = pkg, to = suggests, type = "Suggests", color = "green")
+      )
+    })
+    
+    edges_df <- do.call(rbind, edges_list)
+    
+    all_packages <- unique(c(edges_df$from, edges_df$to))
+    
+    nodes_df <- data.frame(
+      id = all_packages,
+      label = all_packages,
+      value = sapply(all_packages, function(pkg) {
+        sum(edges_df$from == pkg | edges_df$to == pkg)
+      }),
+      color = ifelse(all_packages %in% input$package_name, "#1f77b4", "#7f7f7f"),
+      title = all_packages
+    )
+    
+    visNetwork(nodes_df, edges_df) %>%
+      visEdges(
+        arrows = "to"
+      ) %>%
+      visPhysics(
+        solver = "forceAtlas2Based",
+        forceAtlas2Based = list(
+          gravitationalConstant = -50,
+          centralGravity = 0.01,
+          springLength = 100,
+          springConstant = 0.08
+        )
+      ) %>%
+      visLayout(randomSeed = 123) %>%
+      visOptions(
+        highlightNearest = list(
+          enabled = TRUE,
+          degree = 1,
+          hover = TRUE
+        ),
+        nodesIdSelection = TRUE
+      ) %>%
+      visLegend(
+        addNodes = data.frame(
+          label = c("Selected Package", "Dependency"),
+          color = c("#1f77b4", "#7f7f7f"),
+          shape = "dot"
+        ),
+        addEdges = data.frame(
+          label = c("Depends", "Imports", "Suggests"),
+          color = c("red", "blue", "green")
+        ),
+        useGroups = FALSE,
+        width = 0.1
+      ) %>%
+      visInteraction(
+        dragNodes = TRUE,
+        dragView = TRUE,
+        zoomView = TRUE
       )
   })
   
