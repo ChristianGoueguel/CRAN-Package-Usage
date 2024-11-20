@@ -79,7 +79,7 @@ ui <- fluidPage(
           br(),
           fluidRow(
             column(
-              12, 
+              width = 12, 
               h3("Information"), 
               DTOutput("package_info")
               )
@@ -87,7 +87,7 @@ ui <- fluidPage(
           br(),
           fluidRow(
             column(
-              12, 
+              width = 12, 
               h3("Dependencies"), 
               DTOutput("package_deps")
               )
@@ -98,11 +98,23 @@ ui <- fluidPage(
           br(),
           fluidRow(
             column(
-              12,
+              width = 12,
               div(
                 style = "background-color: black; padding: 20px; border-radius: 5px;",
                 visNetworkOutput("package_deps_network", height = "600px")
                 )
+              )
+            )
+          ),
+        tabPanel(
+          "Save",
+          br(),
+          fluidRow(
+            column(
+              width = 12,
+              downloadButton("download_data", "Download CSV"),
+              hr(),
+              DTOutput("data_table")
               )
             )
           )
@@ -165,6 +177,52 @@ server <- function(input, output, session) {
         monthly = floor_date(date, "month")
       )
   })
+  
+  output$data_table <- DT::renderDataTable({
+    DT::datatable(
+      get_download_stats() %>% 
+        transmute(
+          package = package,
+          year = year(date),
+          day = day(date),
+          month = month(monthly, label = TRUE, abbr = FALSE),
+          download = count) %>%
+        relocate(month, .after = package) %>% 
+        relocate(day, .after = month) %>%
+        relocate(year, .after = day) %>%
+        relocate(download, .after = year),
+      options = list(pageLength = 5),
+      rownames = FALSE
+      ) %>%
+      DT::formatStyle(
+      columns = c("package", "month", "day", "year", "download"),
+      backgroundColor = "rgb(25, 25, 25)",
+      color = "white"
+      )
+  })
+  
+  output$download_data <- downloadHandler(
+    filename = function() {
+      paste("data-", Sys.Date(), ".csv", sep = "")
+    },
+    content = function(file) {
+      write.csv(
+        get_download_stats() %>% 
+          transmute(
+            package = package,
+            year = year(date),
+            day = day(date),
+            month = month(monthly, label = TRUE, abbr = FALSE),
+            download = count) %>%
+          relocate(month, .after = package) %>% 
+          relocate(day, .after = month) %>%
+          relocate(year, .after = day) %>%
+          relocate(download, .after = year), 
+        file, 
+        row.names = FALSE
+        )
+      }
+    )
   
   
   ######################################################
@@ -515,7 +573,7 @@ server <- function(input, output, session) {
       sapply(1:nrow(summary_stats), function(i) {
         stats <- summary_stats[i, ]
         sprintf(
-          "Package: %s\nCumulative Downloads: %s\nAverage Downloads per Day: %s\nAverage Downloads per Week: %s\nAverage Downloads per Month: %s\n\n",
+          "Package: %s\nTotal Downloads: %s\nAverage Downloads per Day: %s\nAverage Downloads per Week: %s\nAverage Downloads per Month: %s\n\n",
           stats$package,
           stats$total_downloads,
           stats$avg_downloads_per_day,
