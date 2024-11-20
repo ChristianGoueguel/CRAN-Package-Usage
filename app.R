@@ -56,12 +56,12 @@ ui <- fluidPage(
         max = Sys.Date()
         ),
       actionButton(
-        "submit", "Start",
+        "submit", "Load Data",
         class = "btn-primary"
         ),
       h3("Summary"),
       tags$div(
-        style = "height: 350px; overflow-y: scroll;",
+        style = "height: 410px; overflow-y: scroll;",
         verbatimTextOutput("download_summary")
       )
     ),
@@ -69,7 +69,8 @@ ui <- fluidPage(
       tabsetPanel(
         id = "tabset",
         tabPanel(
-          "Downloads",
+          "Usage",
+          hr(),
           plotOutput("download_plot", height = "400px"),
           br(),
           plotOutput("total_downloads", height = "400px")
@@ -80,7 +81,7 @@ ui <- fluidPage(
           fluidRow(
             column(
               width = 12, 
-              h3("Information"), 
+              h3("Metadata"), 
               DTOutput("package_info")
               )
             ),
@@ -99,6 +100,7 @@ ui <- fluidPage(
           fluidRow(
             column(
               width = 12,
+              h3("Dependency Network"),
               div(
                 style = "background-color: black; padding: 20px; border-radius: 5px;",
                 visNetworkOutput("package_deps_network", height = "600px")
@@ -107,7 +109,7 @@ ui <- fluidPage(
             )
           ),
         tabPanel(
-          "Save",
+          "Save Data",
           br(),
           fluidRow(
             column(
@@ -148,7 +150,6 @@ server <- function(input, output, session) {
   ############################################
   
   get_download_stats <- eventReactive(input$submit, {
-    
     req(input$package_name)
     from_date <- input$from_date
     to_date <- input$to_date
@@ -230,18 +231,14 @@ server <- function(input, output, session) {
   ######################################################
   
   output$download_plot <- renderPlot({
-    
     req(get_download_stats())
-    
     data <- get_download_stats()
-    
     time_group <- switch(
       input$time_unit,
       "daily" = "date",
       "weekly" = "weekly",
       "monthly" = "monthly"
       )
-    
     unique_packages <- unique(data$package)
     palette <- createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
     
@@ -278,9 +275,7 @@ server <- function(input, output, session) {
   ################################
   
   output$total_downloads <- renderPlot({
-    
     req(get_download_stats())
-    
     data <- get_download_stats()
     unique_packages <- unique(data$package)
     palette <- createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
@@ -320,11 +315,8 @@ server <- function(input, output, session) {
   ######################
   
   get_package_info <- function(pkg_name) {
-    
     tryCatch({
-      
       pkg_info <- pkgsearch::cran_packages(pkg_name)
-      
       if(nrow(pkg_info) == 0) {
         return(
           data.frame(
@@ -376,10 +368,8 @@ server <- function(input, output, session) {
   }
   
   output$package_info <- renderDT({
-
     info_list <- lapply(input$package_name, get_package_info)
     info_df <- do.call(rbind, info_list)
-    
     char_cols <- setdiff(names(info_df), "Date/Publication")
     info_df[char_cols] <- lapply(info_df[char_cols], as.character)
     
@@ -424,11 +414,9 @@ server <- function(input, output, session) {
   #########################
   
   output$package_deps <- renderDT({
-    
     req(input$package_name)
     
     get_deps <- function(pkg, dep_type) {
-
       deps <- tools::package_dependencies(pkg, db = pkg_db(), which = dep_type)[[1]]
       if(is.null(deps)) return("None")
       paste(deps, collapse = ", ")
@@ -465,17 +453,13 @@ server <- function(input, output, session) {
       )
   })
   
-  
-  
   #####################
   # Package(s) Network
   #####################
   
   # Function to include network visualization
   output$package_deps_network <- renderVisNetwork({
-    
     req(input$package_name)
-    
     get_deps <- function(pkg, dep_type) {
       deps <- tools::package_dependencies(pkg, db = pkg_db(), which = dep_type)[[1]]
       if(is.null(deps)) return(character(0))
@@ -483,16 +467,17 @@ server <- function(input, output, session) {
     }
     
     edges_list <- lapply(input$package_name, function(pkg) {
+      depends <- get_deps(pkg, "Depends")
       imports <- get_deps(pkg, "Imports")
       suggests <- get_deps(pkg, "Suggests")
       rbind(
-        if(length(imports) > 0) data.frame(from = pkg, to = imports, type = "Imports", color = "#fa05c9"),
-        if(length(suggests) > 0) data.frame(from = pkg, to = suggests, type = "Suggests", color = "#b4f502")
+        if(length(depends) > 0) data.frame(from = pkg, to = depends, type = "Depends", color = "#9900cc"),
+        if(length(imports) > 0) data.frame(from = pkg, to = imports, type = "Imports", color = "black"),
+        if(length(suggests) > 0) data.frame(from = pkg, to = suggests, type = "Suggests", color = "red")
       )
     })
     
     edges_df <- do.call(rbind, edges_list)
-    
     all_packages <- unique(c(edges_df$from, edges_df$to))
     
     nodes_df <- data.frame(
@@ -501,12 +486,12 @@ server <- function(input, output, session) {
       value = sapply(all_packages, function(pkg) {
         sum(edges_df$from == pkg | edges_df$to == pkg)
       }),
-      color = ifelse(all_packages %in% input$package_name, "#cd0101", "gold"),
-      font.color = ifelse(all_packages %in% input$package_name, "white", "white"),
+      color = ifelse(all_packages %in% input$package_name, "#000080", "#00b300"),
+      font.color = ifelse(all_packages %in% input$package_name, "black", "black"),
       title = paste("<p style='color: black;'>", all_packages, "</p>")
     )
     
-    visNetwork(nodes_df, edges_df, background = "black") %>%
+    visNetwork(nodes_df, edges_df, background = "white") %>%
       visEdges(
         arrows = "to"
         #smooth = list(enabled = TRUE, type = "curvedCW")
@@ -532,16 +517,16 @@ server <- function(input, output, session) {
       visLegend(
         addNodes = data.frame(
           label = c("Package", "Dependency"),
-          color = c("#cd0101", "gold"),
+          color = c("#000080", "#00b300"),
           shape = "dot",
-          font.color = "white"
+          font.color = "black"
         ),
         addEdges = data.frame(
-          label = c("Imports", "Suggests"),
-          color = c("#fa05c9", "#b4f502")
+          label = c("Depends", "Imports", "Suggests"),
+          color = c("#9900cc", "black", "red")
         ),
         useGroups = FALSE,
-        width = 0.2
+        width = 0.15
       ) %>%
       visInteraction(
         dragNodes = TRUE,
@@ -555,7 +540,6 @@ server <- function(input, output, session) {
   ##############################
   
   output$download_summary <- renderText({
-    
     req(get_download_stats())
     data <- get_download_stats()
     
