@@ -12,7 +12,6 @@ library(DT)
 library(igraph)
 library(colourpicker)
 
-
 ################################################################################
 
 ui <- fluidPage(
@@ -27,17 +26,22 @@ ui <- fluidPage(
       }
     "))
   ),
-  titlePanel("CRAN Package Usage"),
+  titlePanel(
+    title = "CRAN Package Usage", 
+    windowTitle = "CRAN Package Usage App"
+    ),
   sidebarLayout(
     sidebarPanel(
       selectizeInput(
-        "package_name", "Select CRAN Packages:",
+        inputId = "package_name", 
+        label = "Select CRAN Packages:",
         choices = NULL,
         multiple = TRUE,
         options = list(maxItems = 20)
         ),
       radioButtons(
-        "time_unit", "Time Unit:",
+        inputId = "time_unit", 
+        label = "Time Unit:",
         choices = c(
           "Daily" = "daily",
           "Weekly" = "weekly",
@@ -46,17 +50,20 @@ ui <- fluidPage(
         selected = "daily"
         ),
       dateInput(
-        "from_date", "From:",
+        inputId = "from_date",
+        label = "From:",
         value = Sys.Date() - 30,
         max = Sys.Date()
         ),
       dateInput(
-        "to_date", "To:",
+        inputId = "to_date", 
+        label = "To:",
         value = Sys.Date(),
         max = Sys.Date()
         ),
       actionButton(
-        "submit", "Load Data",
+        inputId = "submit", 
+        label = "Load Data",
         class = "btn-primary"
         ),
       h3("Summaries"),
@@ -115,13 +122,25 @@ ui <- fluidPage(
             column(
               width = 3,
               hr(),
-              downloadButton(outputId = "download_data", label = "Download CSV", class = "btn-primary"),
+              downloadButton(
+                outputId = "download_data", 
+                label = "Download CSV", 
+                class = "btn-primary"
+                ),
               br(), 
               br(),
-              downloadButton(outputId = "download_usagePlot", label = "Download usagePlot", class = "btn-success"),
+              downloadButton(
+                outputId = "download_usagePlot", 
+                label = "Download usagePlot", 
+                class = "btn-success"
+                ),
               br(), 
               br(),
-              downloadButton(outputId = "download_cumulPlot", label = "Download cumulPlot", class = "btn-success"),
+              downloadButton(
+                outputId = "download_cumulPlot", 
+                label = "Download cumulPlot", 
+                class = "btn-success"
+                ),
               hr()
               ),
             column(
@@ -329,7 +348,7 @@ server <- function(input, output, session) {
         legend.text = element_text(color = "white"),
         legend.title = element_text(color = "white"),
         legend.key = element_rect(fill = "black"),
-        legend.position = "none"
+        legend.position = "bottom"
       )
   })
   
