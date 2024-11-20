@@ -1,8 +1,4 @@
----
-title: "CRAN Package Usage App"
----
-
-# Overview
+# CRAN Package Usage App
 <!-- badges: start -->
 
 <!-- badges: end -->
