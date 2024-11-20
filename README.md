@@ -3,13 +3,17 @@
 
 <!-- badges: end -->
 
-The `CRAN Package Usage App` offers an intuitive and interactive way to explore and analyze CRAN package usage. It enables users to display detailed download trends and compare up to 20 packages simultaneously. Simply select the packages you wish to explore, click the `Load Data` button.
+The `CRAN Package Usage App` offers an intuitive and interactive way to explore 
+and analyze CRAN package usage. It enables users to display detailed download 
+trends and compare up to 20 packages simultaneously. Simply select the packages 
+you wish to explore, click the `Load Data` button.
 
 Access the app here: <https://christian-goueguel.shinyapps.io/cran-package-usage/>
 
 ## Key Features
 
-The app is organized into four main tabs, each designed to provide specific insights and functionalities:
+The app is organized into four main tabs, each designed to provide specific 
+insights and functionalities:
 
 1.  **Usage Tab**
 
