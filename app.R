@@ -59,7 +59,7 @@ ui <- fluidPage(
         "submit", "Load Data",
         class = "btn-primary"
         ),
-      h3("Summary"),
+      h3("Summaries"),
       tags$div(
         style = "height: 410px; overflow-y: scroll;",
         verbatimTextOutput("download_summary")
@@ -71,9 +71,9 @@ ui <- fluidPage(
         tabPanel(
           "Usage",
           hr(),
-          plotOutput("download_plot", height = "400px"),
+          plotOutput("usage_plot", height = "400px"),
           br(),
-          plotOutput("total_downloads", height = "400px")
+          plotOutput("cumul_plot", height = "400px")
           ),
         tabPanel(
           "Metadata",
@@ -109,13 +109,23 @@ ui <- fluidPage(
             )
           ),
         tabPanel(
-          "Save Data",
+          "Save",
           br(),
           fluidRow(
             column(
-              width = 12,
-              downloadButton("download_data", "Download CSV"),
+              width = 3,
               hr(),
+              downloadButton(outputId = "download_data", label = "Download CSV", class = "btn-primary"),
+              br(), 
+              br(),
+              downloadButton(outputId = "download_usagePlot", label = "Download usagePlot", class = "btn-success"),
+              br(), 
+              br(),
+              downloadButton(outputId = "download_cumulPlot", label = "Download cumulPlot", class = "btn-success"),
+              hr()
+              ),
+            column(
+              width = 9,
               DTOutput("data_table")
               )
             )
@@ -230,7 +240,7 @@ server <- function(input, output, session) {
   # Plot package(s) download based on selected time unit
   ######################################################
   
-  output$download_plot <- renderPlot({
+  usage_plot_reactive <- reactive({
     req(get_download_stats())
     data <- get_download_stats()
     time_group <- switch(
@@ -238,7 +248,7 @@ server <- function(input, output, session) {
       "daily" = "date",
       "weekly" = "weekly",
       "monthly" = "monthly"
-      )
+    )
     unique_packages <- unique(data$package)
     palette <- createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
     
@@ -252,7 +262,8 @@ server <- function(input, output, session) {
       labs(
         x = NULL,
         y = NULL,
-        title = paste(stringr::str_to_title(input$time_unit), "Downloads")) +
+        title = paste(stringr::str_to_title(input$time_unit), "Downloads")
+      ) +
       theme_dark(base_size = 15) +
       theme(
         text = element_text(color = "white"),
@@ -269,12 +280,25 @@ server <- function(input, output, session) {
       )
   })
   
+  output$usage_plot <- renderPlot({
+    usage_plot_reactive()
+  })
+  
+  output$download_usagePlot <- downloadHandler(
+    filename = function() {
+      paste("usagePlot-", Sys.Date(), ".png", sep = "")
+    },
+    content = function(file) {
+      ggsave(file, plot = usage_plot_reactive(), device = "png", width = 16, height = 8)
+    }
+  )
+  
   
   ################################
-  # Plot total package(s) download
+  # Plot cumulative downloads
   ################################
   
-  output$total_downloads <- renderPlot({
+  cumul_plot_reactive <- reactive({ 
     req(get_download_stats())
     data <- get_download_stats()
     unique_packages <- unique(data$package)
@@ -292,7 +316,7 @@ server <- function(input, output, session) {
         x = NULL,
         y = NULL,
         title = "Cumulative Downloads"
-        ) +
+      ) +
       theme_dark(base_size = 15) +
       theme(
         text = element_text(color = "white"),
@@ -308,6 +332,19 @@ server <- function(input, output, session) {
         legend.position = "none"
       )
   })
+  
+  output$cumul_plot <- renderPlot({
+    cumul_plot_reactive()
+  })
+  
+  output$download_cumulPlot <- downloadHandler(
+    filename = function() {
+      paste("cumulPlot-", Sys.Date(), ".png", sep = "")
+    },
+    content = function(file) {
+      ggsave(file, plot = cumul_plot_reactive(), device = "png", width = 16, height = 8)
+    }
+  )
   
   
   ######################
@@ -346,8 +383,8 @@ server <- function(input, output, session) {
         Title = safe_get("Title"),
         Maintainer = safe_get("Maintainer"),
         License = safe_get("License"),
-        NeedsCompilation = safe_get("NeedsCompilation"),
-        `Date/Publication` = as.Date(safe_get("Date/Publication", NA)),
+        Compilation = safe_get("NeedsCompilation"),
+        Released = as.Date(safe_get("Date/Publication", NA)),
         stringsAsFactors = FALSE,
         check.names = FALSE
       )
@@ -359,8 +396,8 @@ server <- function(input, output, session) {
         Title = "Error retrieving package information",
         Maintainer = "Unknown",
         License = "Unknown",
-        NeedsCompilation = "Unknown",
-        `Date/Publication` = as.Date(NA),
+        Compilation = "Unknown",
+        Released = as.Date(NA),
         stringsAsFactors = FALSE,
         check.names = FALSE
       )
@@ -370,7 +407,7 @@ server <- function(input, output, session) {
   output$package_info <- renderDT({
     info_list <- lapply(input$package_name, get_package_info)
     info_df <- do.call(rbind, info_list)
-    char_cols <- setdiff(names(info_df), "Date/Publication")
+    char_cols <- setdiff(names(info_df), "Released")
     info_df[char_cols] <- lapply(info_df[char_cols], as.character)
     
     DT::datatable(
@@ -403,7 +440,7 @@ server <- function(input, output, session) {
         color = "white"
       ) %>%
       DT::formatDate(
-        columns = "Date/Publication",
+        columns = "Released",
         method = "toLocaleDateString"
       )
   })
@@ -426,7 +463,7 @@ server <- function(input, output, session) {
     deps_list <- lapply(input$package_name, function(pkg) {
       data.frame(
         Package = rep(pkg, 3),
-        DependencyType = c("Depends", "Imports", "Suggests"),
+        Type = c("Depends", "Imports", "Suggests"),
         Dependencies = c(
           get_deps(pkg, "Depends"),
           get_deps(pkg, "Imports"),
