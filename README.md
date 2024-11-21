@@ -33,8 +33,8 @@ specific insights and functionalities:
     -   **Daily, Weekly, or Monthly Downloads**: View trends over
         different timeframes.
 
-    -   **Cumulative Downloads**: See how the number downloads have
-        accumulated over time.
+    -   **Cumulative Downloads**: Visualize the cumulative download
+        trends over time.
 
 ![](Images/app_image.png)
 
