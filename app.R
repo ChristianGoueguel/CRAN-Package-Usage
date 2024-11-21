@@ -1,5 +1,6 @@
 library(cranlogs)
 library(shiny)
+library(visNetwork)
 library(ggplot2)
 library(lubridate)
 library(dplyr)
@@ -11,6 +12,7 @@ library(plotly)
 library(DT)
 library(igraph)
 library(colourpicker)
+
 
 ################################################################################
 
@@ -269,7 +271,7 @@ server <- function(input, output, session) {
       "monthly" = "monthly"
     )
     unique_packages <- unique(data$package)
-    palette <- createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
+    palette <- Polychrome::createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
     
     data %>%
       group_by(package, !!sym(time_group)) %>%
@@ -321,7 +323,7 @@ server <- function(input, output, session) {
     req(get_download_stats())
     data <- get_download_stats()
     unique_packages <- unique(data$package)
-    palette <- createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
+    palette <- Polychrome::createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
     
     data %>%
       group_by(package) %>%

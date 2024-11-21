@@ -1,12 +1,12 @@
-name: cran-package-usage
+name: CRAN-Package-Usage
 title: CRAN-Package-Usage
 username: christian-goueguel
 account: christian-goueguel
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
-appId: 13361322
-bundleId: 9394033
-url: https://christian-goueguel.shinyapps.io/cran-package-usage/
+appId: 13409922
+bundleId: 9395823
+url: https://christian-goueguel.shinyapps.io/CRAN-Package-Usage/
 version: 1
 asMultiple: FALSE
 asStatic: FALSE
