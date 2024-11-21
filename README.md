@@ -1,25 +1,40 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
 # CRAN Package Usage App
+
 <!-- badges: start -->
 
+[![Project Status: Active – The project has reached a stable, usable
+state and is being actively
+developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+[![Lifecycle:
+stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
+[![License:
+MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 <!-- badges: end -->
 
-The `CRAN Package Usage App` offers an intuitive and interactive way to explore 
-and analyze CRAN package usage. It enables users to display detailed download 
-trends and compare up to 20 packages simultaneously. Simply select the packages 
-you wish to explore, click the `Load Data` button.
+The `CRAN Package Usage App` offers an intuitive and interactive way to
+explore and analyze CRAN package usage. It enables users to display
+detailed download trends and compare up to 20 packages simultaneously.
+Simply select the packages you wish to explore, click the `Load Data`
+button.
 
-Access the app here: <https://christian-goueguel.shinyapps.io/cran-package-usage/>
+Access the app here:
+<https://christian-goueguel.shinyapps.io/cran-package-usage/>
 
 ## Key Features
 
-The app is organized into four main tabs, each designed to provide specific 
-insights and functionalities:
+The app is organized into four main tabs, each designed to provide
+specific insights and functionalities:
 
 1.  **Usage Tab**
 
-    -   **Daily, Weekly, or Monthly Downloads**: View trends over different timeframes.
+    -   **Daily, Weekly, or Monthly Downloads**: View trends over
+        different timeframes.
 
-    -   **Cumulative Downloads**: See how the number downloads have accumulated over time.
+    -   **Cumulative Downloads**: See how the number downloads have
+        accumulated over time.
 
 ![](Images/app_image.png)
 
@@ -37,7 +52,8 @@ insights and functionalities:
 
     -   Gain insights into how packages are interconnected.
 
-    -   Explore a Network-based representation of dependency relationships.
+    -   Explore a Network-based representation of dependency
+        relationships.
 
 ![](Images/app_image3.png)
 
