@@ -23,9 +23,6 @@ button.
 Access the app here:
 <https://christian-goueguel.shinyapps.io/cran-package-usage/>
 
-**Note: Waiting for the update of the package** `rsconnect` **for R
-version 4.4.2**
-
 ## Key Features
 
 The app is organized into four main tabs, each designed to provide
