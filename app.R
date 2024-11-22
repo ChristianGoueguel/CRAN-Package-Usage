@@ -52,13 +52,13 @@ ui <- fluidPage(
       dateInput(
         inputId = "from_date",
         label = "From:",
-        value = Sys.Date() - 30,
+        value = Sys.Date() - 33,
         max = Sys.Date()
         ),
       dateInput(
         inputId = "to_date", 
         label = "To:",
-        value = Sys.Date(),
+        value = Sys.Date() - 2,
         max = Sys.Date()
         ),
       actionButton(
