@@ -71,18 +71,28 @@ ui <- fluidPage(
       h3("Summaries"),
       tags$div(
         style = "height: 410px; overflow-y: scroll;",
-        verbatimTextOutput("download_summary")
-      )
-    ),
+        verbatimTextOutput(
+          outputId = "download_summary",
+          placeholder = FALSE
+          )
+        )
+      ),
     mainPanel(
       tabsetPanel(
         id = "tabset",
+        type = "tabs",
         tabPanel(
           "Usage",
           hr(),
-          plotOutput("usage_plot", height = "400px"),
+          plotOutput(
+            outputId = "usage_plot", 
+            height = "400px"
+            ),
           br(),
-          plotOutput("cumul_plot", height = "400px")
+          plotOutput(
+            outputId = "cumul_plot", 
+            height = "400px"
+            )
           ),
         tabPanel(
           "Peak Usage",
@@ -96,9 +106,15 @@ ui <- fluidPage(
             step = 1,
             width = "150px"
           ),
-          plotOutput("peak_download_plot"),
+          plotOutput(
+            outputId = "peak_download_plot",  
+            height = "425px"
+            ),
           br(),
-          DTOutput("peak_download_table")
+          DTOutput(
+            outputId = "peak_download_table",
+            width = NULL
+            )
           ),
         tabPanel(
           "Network",
@@ -109,7 +125,10 @@ ui <- fluidPage(
               h3("Dependency Network"),
               div(
                 style = "background-color: black; padding: 20px; border-radius: 5px;",
-                visNetworkOutput("package_deps_network", height = "600px")
+                visNetworkOutput(
+                  outputId = "package_deps_network", 
+                  height = "600px"
+                  )
                 )
               )
             )
@@ -121,7 +140,10 @@ ui <- fluidPage(
             column(
               width = 12, 
               h3("Metadata"), 
-              DTOutput("package_info")
+              DTOutput(
+                outputId = "package_info",
+                width = NULL
+                )
               )
             ),
           br(),
@@ -129,7 +151,10 @@ ui <- fluidPage(
             column(
               width = 12, 
               h3("Dependencies"), 
-              DTOutput("package_deps")
+              DTOutput(
+                outputId = "package_deps",
+                width = NULL
+                )
               )
             )
           ),
@@ -163,7 +188,10 @@ ui <- fluidPage(
               ),
             column(
               width = 9,
-              DTOutput("data_table")
+              DTOutput(
+                outputId = "data_table",
+                width = NULL
+                )
               )
             )
           )
@@ -201,7 +229,7 @@ server <- function(input, output, session) {
     from_date <- input$from_date
     to_date <- input$to_date
     
-    withProgress(message = 'Fetching download stats...', {
+    withProgress(message = 'Loading data...', {
       all_downloads <- lapply(input$package_name, function(pkg) {
         incProgress(1 / length(input$package_name))
         downloads <- try(cran_downloads(pkg, from = from_date, to = to_date))
@@ -212,13 +240,10 @@ server <- function(input, output, session) {
         return(downloads)
       })
     })
-    
     downloads <- bind_rows(all_downloads[!sapply(all_downloads, is.null)])
-    
     if(nrow(downloads) == 0) {
       return(NULL)
     }
-    
     downloads %>%
       mutate(
         weekly = floor_date(date, "week"),
@@ -316,11 +341,9 @@ server <- function(input, output, session) {
         legend.position = "bottom"
       )
   })
-  
   output$usage_plot <- renderPlot({
     usage_plot_reactive()
   })
-  
   output$download_usagePlot <- downloadHandler(
     filename = function() {
       paste("usagePlot-", Sys.Date(), ".png", sep = "")
@@ -369,11 +392,9 @@ server <- function(input, output, session) {
         legend.position = "bottom"
       )
   })
-  
   output$cumul_plot <- renderPlot({
     cumul_plot_reactive()
   })
-  
   output$download_cumulPlot <- downloadHandler(
     filename = function() {
       paste("cumulPlot-", Sys.Date(), ".png", sep = "")
@@ -422,10 +443,10 @@ server <- function(input, output, session) {
     data %>%
       group_by(package) %>%
       ggplot() +
-      aes(x = reorder(as.character(date), -download), y = download, fill = package) +
+      aes(x = as.character(date), y = download, fill = package) +
       geom_col(position = "stack", width = .3, show.legend = TRUE) +
       scale_fill_manual(values = setNames(palette, unique_packages)) +
-      labs(x = " ", y = " ", title = " ") +
+      labs(x = " ", y = " ", title = "Peak Download Days") +
       theme_dark(base_size = 15) +
       theme(
         text = element_text(color = "white"),

@@ -12,6 +12,7 @@ developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.re
 stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 [![License:
 MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 <!-- badges: end -->
 
 The `CRAN Package Usage App` offers an intuitive and interactive way to
@@ -38,7 +39,14 @@ specific insights and functionalities:
 
 ![](Images/app_image.png)
 
-2.  **Metadata Tab**
+2.  **Peak Usage**
+
+    -   Explore the peak download days with ease. Visualize up to 10
+        highest download days for any selected time period.
+
+![](Images/app_image6.png)
+
+3.  **Metadata Tab**
 
     -   Access **package metadata**.
 
@@ -48,7 +56,7 @@ specific insights and functionalities:
 
 ![](Images/app_image5.png)
 
-3.  **Network Tab**
+4.  **Network Tab**
 
     -   Gain insights into how packages are interconnected.
 
@@ -57,7 +65,7 @@ specific insights and functionalities:
 
 ![](Images/app_image3.png)
 
-4.  **Save Tab**
+5.  **Save Tab**
 
     -   **Export data** in CSV format.
 
