@@ -53,13 +53,15 @@ ui <- fluidPage(
         inputId = "from_date",
         label = "From:",
         value = Sys.Date() - 33,
-        max = Sys.Date()
+        max = Sys.Date(),
+        width = "200px"
         ),
       dateInput(
         inputId = "to_date", 
         label = "To:",
         value = Sys.Date() - 2,
-        max = Sys.Date()
+        max = Sys.Date(),
+        width = "200px"
         ),
       actionButton(
         inputId = "submit", 
@@ -83,8 +85,38 @@ ui <- fluidPage(
           plotOutput("cumul_plot", height = "400px")
           ),
         tabPanel(
-          "Metadata",
+          "Peak Usage",
+          hr(),
+          numericInput(
+            inputId = "numbPeak", 
+            label = "Select Peak Count:", 
+            value = 2, 
+            min = 1,
+            max = 10,
+            step = 1,
+            width = "150px"
+          ),
+          plotOutput("peak_download_plot"),
           br(),
+          DTOutput("peak_download_table")
+          ),
+        tabPanel(
+          "Network",
+          hr(),
+          fluidRow(
+            column(
+              width = 12,
+              h3("Dependency Network"),
+              div(
+                style = "background-color: black; padding: 20px; border-radius: 5px;",
+                visNetworkOutput("package_deps_network", height = "600px")
+                )
+              )
+            )
+          ),
+        tabPanel(
+          "Metadata",
+          hr(),
           fluidRow(
             column(
               width = 12, 
@@ -102,22 +134,8 @@ ui <- fluidPage(
             )
           ),
         tabPanel(
-          "Network",
-          br(),
-          fluidRow(
-            column(
-              width = 12,
-              h3("Dependency Network"),
-              div(
-                style = "background-color: black; padding: 20px; border-radius: 5px;",
-                visNetworkOutput("package_deps_network", height = "600px")
-                )
-              )
-            )
-          ),
-        tabPanel(
           "Save",
-          br(),
+          hr(),
           fluidRow(
             column(
               width = 3,
@@ -364,6 +382,70 @@ server <- function(input, output, session) {
       ggsave(file, plot = cumul_plot_reactive(), device = "png", width = 16, height = 8)
     }
   )
+  
+  #############
+  # Peak Usage
+  #############
+  
+  output$peak_download_table <- DT::renderDataTable({
+    req(input$numbPeak)
+    DT::datatable(
+      get_download_stats() %>%
+        select(package, date, count) %>%
+        rename(download = count) %>%
+        group_by(package) %>%
+        arrange(desc(download)) %>%
+        slice_max(order_by = download, n = input$numbPeak, with_ties = FALSE) %>%
+        ungroup(),
+      options = list(pageLength = 5),
+      rownames = FALSE
+    ) %>%
+      DT::formatStyle(
+        columns = c("package", "date", "download"),
+        backgroundColor = "rgb(25, 25, 25)",
+        color = "white"
+      )
+  })
+  
+  peak_download_plot_reactive <- reactive({
+    req(input$numbPeak)
+    data <- get_download_stats() %>%
+      select(package, date, count) %>%
+      rename(download = count) %>%
+      group_by(package) %>%
+      slice_max(order_by = download, n = input$numbPeak, with_ties = FALSE) %>%
+      ungroup()
+    
+    unique_packages <- unique(data$package)
+    palette <- Polychrome::createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
+    
+    data %>%
+      group_by(package) %>%
+      ggplot() +
+      aes(x = reorder(as.character(date), -download), y = download, fill = package) +
+      geom_col(position = "stack", width = .3, show.legend = TRUE) +
+      scale_fill_manual(values = setNames(palette, unique_packages)) +
+      labs(x = " ", y = " ", title = " ") +
+      theme_dark(base_size = 15) +
+      theme(
+        text = element_text(color = "white"),
+        plot.title = element_text(hjust = 0.5),
+        plot.background = element_rect(fill = "black"),
+        panel.background = element_rect(fill = "black"),
+        panel.grid.major = element_line(color = "grey30"),
+        panel.grid.minor = element_line(color = "grey20"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.background = element_rect(fill = "black"),
+        legend.text = element_text(color = "white"),
+        legend.title = element_text(color = "white"),
+        legend.position = "bottom"
+      )
+  })
+  
+  output$peak_download_plot <- renderPlot({
+    peak_download_plot_reactive()
+  })
+  
   
   
   ######################
