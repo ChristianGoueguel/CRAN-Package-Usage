@@ -229,7 +229,7 @@ server <- function(input, output, session) {
     from_date <- input$from_date
     to_date <- input$to_date
     
-    withProgress(message = 'Loading data...', {
+    withProgress(message = 'Loading...', {
       all_downloads <- lapply(input$package_name, function(pkg) {
         incProgress(1 / length(input$package_name))
         downloads <- try(cran_downloads(pkg, from = from_date, to = to_date))
@@ -302,6 +302,10 @@ server <- function(input, output, session) {
   # Plot package(s) download based on selected time unit
   ######################################################
   
+  xcolor <- function(x) {
+    Polychrome::createPalette(length(unique(x)), c("#ff0000", "#00ff00", "#0000ff"))
+  }
+  
   usage_plot_reactive <- reactive({
     req(get_download_stats())
     data <- get_download_stats()
@@ -312,7 +316,7 @@ server <- function(input, output, session) {
       "monthly" = "monthly"
     )
     unique_packages <- unique(data$package)
-    palette <- Polychrome::createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
+    palette <- xcolor(data$package)
     
     data %>%
       group_by(package, !!sym(time_group)) %>%
@@ -361,8 +365,9 @@ server <- function(input, output, session) {
   cumul_plot_reactive <- reactive({ 
     req(get_download_stats())
     data <- get_download_stats()
+    
     unique_packages <- unique(data$package)
-    palette <- Polychrome::createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
+    palette <- xcolor(data$package)
     
     data %>%
       group_by(package) %>%
@@ -438,7 +443,7 @@ server <- function(input, output, session) {
       ungroup()
     
     unique_packages <- unique(data$package)
-    palette <- Polychrome::createPalette(length(unique_packages), c("#ff0000", "#00ff00", "#0000ff"))
+    palette <- xcolor(data$package)
     
     data %>%
       group_by(package) %>%
@@ -466,7 +471,6 @@ server <- function(input, output, session) {
   output$peak_download_plot <- renderPlot({
     peak_download_plot_reactive()
   })
-  
   
   
   ######################
@@ -584,12 +588,13 @@ server <- function(input, output, session) {
     
     deps_list <- lapply(input$package_name, function(pkg) {
       data.frame(
-        Package = rep(pkg, 3),
-        Type = c("Depends", "Imports", "Suggests"),
+        Package = rep(pkg, 4),
+        Type = c("Depends", "Imports", "Suggests", "Enhances"),
         Dependencies = c(
           get_deps(pkg, "Depends"),
           get_deps(pkg, "Imports"),
-          get_deps(pkg, "Suggests")
+          get_deps(pkg, "Suggests"),
+          get_deps(pkg, "Enhances")
         )
       )
     })
@@ -616,11 +621,17 @@ server <- function(input, output, session) {
   # Package(s) Network
   #####################
   
-  # Function to include network visualization
+  # Regular Dependencies
   output$package_deps_network <- renderVisNetwork({
     req(input$package_name)
     get_deps <- function(pkg, dep_type) {
-      deps <- tools::package_dependencies(pkg, db = pkg_db(), which = dep_type)[[1]]
+      deps <- tools::package_dependencies(
+        packages = pkg, 
+        db = pkg_db(), 
+        which = dep_type, 
+        recursive = FALSE, 
+        reverse = FALSE
+        )[[1]]
       if(is.null(deps)) return(character(0))
       deps
     }
@@ -629,10 +640,12 @@ server <- function(input, output, session) {
       depends <- get_deps(pkg, "Depends")
       imports <- get_deps(pkg, "Imports")
       suggests <- get_deps(pkg, "Suggests")
+      enhances <- get_deps(pkg, "Enhances")
       rbind(
         if(length(depends) > 0) data.frame(from = pkg, to = depends, type = "Depends", color = "#9900cc"),
         if(length(imports) > 0) data.frame(from = pkg, to = imports, type = "Imports", color = "black"),
-        if(length(suggests) > 0) data.frame(from = pkg, to = suggests, type = "Suggests", color = "red")
+        if(length(suggests) > 0) data.frame(from = pkg, to = suggests, type = "Suggests", color = "red"),
+        if(length(enhances) > 0) data.frame(from = pkg, to = enhances, type = "Enhances", color = "gold")
       )
     })
     
@@ -650,10 +663,15 @@ server <- function(input, output, session) {
       title = paste("<p style='color: black;'>", all_packages, "</p>")
     )
     
-    visNetwork(nodes_df, edges_df, background = "white") %>%
+    visNetwork(
+      nodes = nodes_df, 
+      edges = edges_df, 
+      background = "white"
+      ) %>%
       visEdges(
-        arrows = "to"
-        #smooth = list(enabled = TRUE, type = "curvedCW")
+        arrows = "to",
+        smooth = list(enabled = TRUE, type = "curvedCCW", roundness = 0.1),
+        shadow = list(enabled = TRUE)
       ) %>%
       visPhysics(
         solver = "forceAtlas2Based",
@@ -661,7 +679,8 @@ server <- function(input, output, session) {
           gravitationalConstant = -50,
           centralGravity = 0.01,
           springLength = 100,
-          springConstant = 0.08
+          springConstant = 0.08,
+          avoidOverlap = 0.1
         )
       ) %>%
       visLayout(randomSeed = 123) %>%
@@ -681,11 +700,11 @@ server <- function(input, output, session) {
           font.color = "black"
         ),
         addEdges = data.frame(
-          label = c("Depends", "Imports", "Suggests"),
-          color = c("#9900cc", "black", "red")
+          label = c("Depends", "Imports", "Suggests", "Enhances"),
+          color = c("#9900cc", "black", "red", "gold")
         ),
         useGroups = FALSE,
-        width = 0.15
+        width = 0.17
       ) %>%
       visInteraction(
         dragNodes = TRUE,
@@ -693,6 +712,7 @@ server <- function(input, output, session) {
         zoomView = TRUE
       )
   })
+  
   
   ##############################
   # Package(s) Download Summary
