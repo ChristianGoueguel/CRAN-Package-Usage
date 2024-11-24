@@ -1,5 +1,6 @@
 library(cranlogs)
 library(shiny)
+library(shinyjs)
 library(visNetwork)
 library(ggplot2)
 library(lubridate)
@@ -14,7 +15,10 @@ library(colourpicker)
 ################################################################################
 
 ui <- fluidPage(
-  theme = bslib::bs_theme(version = 5, bootswatch = "darkly"),
+  theme = bslib::bs_theme(
+    base_font = font_google("Roboto", local = TRUE),
+    version = 5, 
+    bootswatch = "darkly"),
   tags$head(
     tags$style(HTML("
       #dep_network {
@@ -30,7 +34,10 @@ ui <- fluidPage(
     windowTitle = "CRAN Package Usage App"
     ),
   sidebarLayout(
-    sidebarPanel(
+    sidebarPanel = sidebarPanel(
+      position = "left",
+      fluid = TRUE,
+      class = "p-3 border rounded",
       selectizeInput(
         inputId = "package_name", 
         label = "Select CRAN Packages:",
@@ -67,6 +74,8 @@ ui <- fluidPage(
         label = "Load Data",
         class = "btn-primary"
         ),
+      br(),
+      br(),
       h3("Summaries"),
       tags$div(
         style = "height: 410px; overflow-y: scroll;",
@@ -76,10 +85,11 @@ ui <- fluidPage(
           )
         )
       ),
-    mainPanel(
+    mainPanel = mainPanel(
+      class = "p-3 border rounded",
       tabsetPanel(
         id = "tabset",
-        type = "tabs",
+        type = "pills",
         tabPanel(
           "Usage",
           plotOutput(
@@ -191,7 +201,7 @@ ui <- fluidPage(
           )
         )
       )
-    )
+    ),
   )
 
 ################################################################################
