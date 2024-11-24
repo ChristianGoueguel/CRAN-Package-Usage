@@ -76,7 +76,7 @@ ui <- fluidPage(
         ),
       br(),
       br(),
-      h3("Summaries"),
+      h4("Download Summary"),
       tags$div(
         style = "height: 410px; overflow-y: scroll;",
         verbatimTextOutput(
@@ -92,6 +92,7 @@ ui <- fluidPage(
         type = "pills",
         tabPanel(
           "Usage",
+          hr(),
           plotOutput(
             outputId = "usage_plot", 
             height = "400px"
@@ -104,6 +105,7 @@ ui <- fluidPage(
           ),
         tabPanel(
           "Peak Usage",
+          hr(),
           numericInput(
             inputId = "numbPeak", 
             label = "Select Peak Count:", 
@@ -125,6 +127,7 @@ ui <- fluidPage(
           ),
         tabPanel(
           "Network",
+          hr(),
           fluidRow(
             column(
               width = 12,
@@ -141,6 +144,7 @@ ui <- fluidPage(
           ),
         tabPanel(
           "Metadata",
+          hr(),
           fluidRow(
             column(
               width = 12, 
@@ -165,10 +169,10 @@ ui <- fluidPage(
           ),
         tabPanel(
           "Save",
+          hr(),
           fluidRow(
             column(
               width = 3,
-              hr(),
               downloadButton(
                 outputId = "download_data", 
                 label = "Download CSV", 
@@ -188,7 +192,6 @@ ui <- fluidPage(
                 label = "Download cumulPlot", 
                 class = "btn-success"
                 ),
-              hr()
               ),
             column(
               width = 9,
