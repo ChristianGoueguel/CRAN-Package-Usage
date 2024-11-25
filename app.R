@@ -310,28 +310,25 @@ server <- function(input, output, session) {
   
   color_mapping <- reactiveVal()
   xcolor <- function(x) {
-    existing_mapping <- color_mapping() %||% setNames(character(0), character(0))
-    unique_packages <- unique(x)
-    new_packages <- setdiff(unique_packages, names(existing_mapping))
+    color_mapping(setNames(character(0), character(0)))  
+    unique_packages <- sort(unique(x))
     
-    if (length(new_packages) > 0) {
-      new_colors <- Polychrome::createPalette(
-        N = length(new_packages), 
-        seedcolors = c(
-          "#ff0000", "#00ff00", "#0000ff", "#FF00FF", 
-          "#FFFF00", "#00FFFF", "#FFA500"
-          ), 
-        range = c(30, 90),
-        target = "normal",
-        M = 50000
-        )
-      updated_mapping <- c(existing_mapping, setNames(new_colors, new_packages))
-      color_mapping(updated_mapping)
-      updated_mapping
-    } else {
-      existing_mapping
-    }
+    new_colors <- Polychrome::createPalette(
+      N = length(unique_packages), 
+      seedcolors = c(
+        "#ff0000", "#00ff00", "#0000ff", "#FF00FF", 
+        "#FFFF00", "#00FFFF", "#FFA500"
+        ), 
+      range = c(30, 90),
+      target = "normal",
+      M = 50000
+    )
+    
+    updated_mapping <- setNames(new_colors, unique_packages)
+    color_mapping(updated_mapping)
+    updated_mapping
   }
+  
   
   ######################################################
   # Plot package(s) download based on selected time unit
