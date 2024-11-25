@@ -16,7 +16,7 @@ library(colourpicker)
 
 ui <- fluidPage(
   theme = bslib::bs_theme(
-    base_font = font_google("Roboto", local = TRUE),
+    base_font = sass::font_google("Roboto", local = TRUE),
     version = 5, 
     bootswatch = "darkly"),
   tags$head(
@@ -304,14 +304,34 @@ server <- function(input, output, session) {
       }
     )
   
+  ################
+  # Color mapping
+  ################
+  
+  color_mapping <- reactiveVal()
+  xcolor <- function(x) {
+    existing_mapping <- color_mapping() %||% setNames(character(0), character(0))
+    unique_packages <- unique(x)
+    new_packages <- setdiff(unique_packages, names(existing_mapping))
+    
+    if (length(new_packages) > 0) {
+      new_colors <- Polychrome::createPalette(
+        length(new_packages), 
+        seedcolors = c("#ff0000", "#00ff00", "#0000ff"), 
+        range = c(30, 90),
+        target = "normal"
+        )
+      updated_mapping <- c(existing_mapping, setNames(new_colors, new_packages))
+      color_mapping(updated_mapping)
+      updated_mapping
+    } else {
+      existing_mapping
+    }
+  }
   
   ######################################################
   # Plot package(s) download based on selected time unit
   ######################################################
-  
-  xcolor <- function(x) {
-    Polychrome::createPalette(length(unique(x)), c("#ff0000", "#00ff00", "#0000ff"))
-  }
   
   usage_plot_reactive <- reactive({
     req(get_download_stats())
@@ -322,7 +342,7 @@ server <- function(input, output, session) {
       "weekly" = "weekly",
       "monthly" = "monthly"
     )
-    unique_packages <- unique(data$package)
+    
     palette <- xcolor(data$package)
     
     data %>%
@@ -331,7 +351,7 @@ server <- function(input, output, session) {
       ggplot() +
       aes(x = !!sym(time_group), y = count, color = package) +
       geom_line(linewidth = 1) +
-      scale_color_manual(values = setNames(palette, unique_packages)) +
+      scale_color_manual(values = palette) +
       labs(
         x = NULL,
         y = NULL,
@@ -372,8 +392,6 @@ server <- function(input, output, session) {
   cumul_plot_reactive <- reactive({ 
     req(get_download_stats())
     data <- get_download_stats()
-    
-    unique_packages <- unique(data$package)
     palette <- xcolor(data$package)
     
     data %>%
@@ -383,7 +401,7 @@ server <- function(input, output, session) {
       ggplot() +
       aes(x = date, y = cumulative, color = package) +
       geom_line(linewidth = 1) +
-      scale_color_manual(values = setNames(palette, unique_packages)) +
+      scale_color_manual(values = palette) +
       labs(
         x = NULL,
         y = NULL,
@@ -449,7 +467,6 @@ server <- function(input, output, session) {
       slice_max(order_by = download, n = input$numbPeak, with_ties = FALSE) %>%
       ungroup()
     
-    unique_packages <- unique(data$package)
     palette <- xcolor(data$package)
     
     data %>%
@@ -457,7 +474,7 @@ server <- function(input, output, session) {
       ggplot() +
       aes(x = as.character(date), y = download, fill = package) +
       geom_col(position = "stack", width = .3, show.legend = TRUE) +
-      scale_fill_manual(values = setNames(palette, unique_packages)) +
+      scale_fill_manual(values = palette) +
       labs(x = " ", y = " ", title = "Peak Download Days") +
       theme_dark(base_size = 15) +
       theme(
