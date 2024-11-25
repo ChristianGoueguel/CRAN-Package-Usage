@@ -316,10 +316,14 @@ server <- function(input, output, session) {
     
     if (length(new_packages) > 0) {
       new_colors <- Polychrome::createPalette(
-        length(new_packages), 
-        seedcolors = c("#ff0000", "#00ff00", "#0000ff"), 
+        N = length(new_packages), 
+        seedcolors = c(
+          "#ff0000", "#00ff00", "#0000ff", "#FF00FF", 
+          "#FFFF00", "#00FFFF", "#FFA500"
+          ), 
         range = c(30, 90),
-        target = "normal"
+        target = "normal",
+        M = 50000
         )
       updated_mapping <- c(existing_mapping, setNames(new_colors, new_packages))
       color_mapping(updated_mapping)
