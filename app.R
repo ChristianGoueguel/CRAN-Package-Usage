@@ -120,13 +120,14 @@ ui <- fluidPage(
             height = "425px"
             ),
           br(),
+          hr(),
           DTOutput(
             outputId = "peak_download_table",
             width = NULL
             )
           ),
         tabPanel(
-          "Stats",
+          "Statistics",
           hr(),
           selectInput(
             inputId = "time_unit_selection",
@@ -137,10 +138,11 @@ ui <- fluidPage(
           br(),
           plotOutput(
             outputId = "stats_plot",
-            height = "400px"
+            height = "425px"
           ),
           br(),
           hr(),
+          h3("Descriptive Summary"),
           DTOutput(
             outputId = "descriptive_stats",
             width = NULL
@@ -234,7 +236,6 @@ server <- function(input, output, session) {
   pkg_db <- reactive({
     as.data.frame(available.packages(repos = "https://cloud.r-project.org"))
   })
-  
   observe({
     updateSelectizeInput(
       session, "package_name",
@@ -246,7 +247,9 @@ server <- function(input, output, session) {
         placeholder = 'Select packages'
         )
       )
-    
+    })
+  
+  observeEvent(input$time_unit, {
     req(get_download_stats())
     data <- get_download_stats()
     time_group <- switch(
@@ -262,7 +265,8 @@ server <- function(input, output, session) {
         selected = unique(data[[time_group]])[1]
       )
     }
-    })
+  })
+  
 
   ############################################  
   # Function to get package(s) download number
@@ -486,7 +490,13 @@ server <- function(input, output, session) {
         arrange(desc(download)) %>%
         slice_max(order_by = download, n = input$numbPeak, with_ties = FALSE) %>%
         ungroup(),
-      options = list(pageLength = 5),
+      options = list(
+        autoWidth = TRUE,
+        pageLength = 5,
+        buttons = c('copy', 'csv', 'excel'),
+        columnDefs = list(list(className = 'dt-center', targets = "_all"))
+        ),
+      extensions = 'Buttons',
       rownames = FALSE
     ) %>%
       DT::formatStyle(
@@ -550,97 +560,112 @@ server <- function(input, output, session) {
       "monthly" = "monthly"
     )
     
-    formatted_time_selection <- if (input$time_unit == "monthly") {
-      format(as.Date(paste0(input$time_unit_selection, "-01")), "%B %Y")
+    if (!input$time_unit %in% c("weekly", "monthly")) {
+      return(
+        ggplot() + 
+          labs(title = "This chart is only available for weekly or monthly time units") +
+          theme_void(base_size = 18) +
+          theme(
+            plot.title = element_text(hjust = 0.5, color = "white"),
+            plot.background = element_rect(fill = "black")
+            )
+        )
     } else {
-      date <- input$time_unit_selection
-      paste(year(date), "-", "W", isoweek(date))
-    }
-    
-    title_prefix <- if (input$time_unit == "weekly") {
-      "Downloads in the week of "
-    } else {
-      "Downloads in "
-    }
-    
-    filtered_data <- data %>%
-      filter(!!sym(time_group) == input$time_unit_selection)
-    
-    p1 <- filtered_data %>%
-      group_by(package) %>%
-      summarise(count = sum(count), .groups = "drop") %>%
-      ggplot() +
-      aes(x = count, y = factor(package), fill = package) +
-      geom_col(width = 0.8, show.legend = TRUE) +
-      scale_fill_manual(values = palette) +
-      labs(x = " ", y = " ") +
-      theme_dark(base_size = 15) +
-      theme(
-        text = element_text(color = "white"),
-        plot.title = element_text(hjust = 0.5),
-        plot.background = element_rect(fill = "black", color = "black"),
-        panel.background = element_rect(fill = "black"),
-        panel.grid.major = element_line(color = "grey30"),
-        panel.grid.minor = element_line(color = "grey20"),
-        legend.background = element_rect(fill = "black"),
-        legend.text = element_text(color = "white"),
-        legend.title = element_text(color = "white"),
-        legend.key = element_rect(fill = "black"),
-        legend.position = "bottom"
-      )
-    
-    p2 <- filtered_data %>%
-      group_by(package) %>%
-      ggplot() +
-      aes(x = count, y = factor(package), fill = package) +
-      geom_boxplot(
-        staplewidth = 0.5, 
-        color = "white",
-        outlier.fill = NULL,
-        outlier.shape = 21,
-        outlier.size = 3,
-        show.legend = TRUE
+      formatted_time_selection <- if (input$time_unit == "monthly") {
+        format(as.Date(paste0(input$time_unit_selection, "-01")), "%B %Y")
+        } else {
+          date <- input$time_unit_selection
+          paste(year(date),"-","W",isoweek(date))
+          }
+      title_prefix <- if (input$time_unit == "weekly") {
+        "Downloads in the week of "
+        } else {
+          "Downloads in "
+          }
+      
+      filtered_data <- data %>%
+        filter(!!sym(time_group) == input$time_unit_selection)
+      
+      p1 <- filtered_data %>%
+        group_by(package) %>%
+        summarise(count = sum(count), .groups = "drop") %>%
+        ggplot() +
+        aes(x = count, y = factor(package), fill = package) +
+        geom_col(width = 0.8, show.legend = TRUE) +
+        scale_fill_manual(values = palette) +
+        labs(x = " ", y = " ", subtitle = "Total Downloads") +
+        theme_dark(base_size = 15) +
+        theme(
+          text = element_text(color = "white"),
+          plot.title = element_text(hjust = 0.5),
+          plot.background = element_rect(fill = "black", color = "black"),
+          panel.background = element_rect(fill = "black"),
+          panel.grid.major = element_line(color = "grey30"),
+          panel.grid.minor = element_line(color = "grey20"),
+          legend.background = element_rect(fill = "black"),
+          legend.text = element_text(color = "white"),
+          legend.title = element_text(color = "white"),
+          legend.key = element_rect(fill = "black"),
+          plot.margin = margin(t = .5, r = 0, unit = "cm"),
+          legend.position = "bottom"
+        )
+      
+      p2 <- filtered_data %>%
+        group_by(package) %>%
+        ggplot() +
+        aes(x = count, y = factor(package), fill = package) +
+        geom_boxplot(
+          staplewidth = 0.5, 
+          color = "white",
+          outlier.fill = NULL,
+          outlier.shape = 21,
+          outlier.size = 3,
+          show.legend = TRUE
         ) +
-      scale_fill_manual(values = palette) +
-      labs(x = " ", y = " ") +
-      theme_dark(base_size = 15) +
-      theme(
-        text = element_text(color = "white"),
-        axis.text.y = element_blank(),
-        plot.title = element_text(hjust = 0.5),
-        plot.background = element_rect(fill = "black", color = "black"),
-        panel.background = element_rect(fill = "black"),
-        panel.grid.major = element_line(color = "grey30"),
-        panel.grid.minor = element_line(color = "grey20"),
-        legend.background = element_rect(fill = "black"),
-        legend.text = element_text(color = "white"),
-        legend.title = element_text(color = "white"),
-        legend.key = element_rect(fill = "black"),
-        legend.position = "bottom"
-      )
-    
-    ggpubr::annotate_figure(
-      ggpubr::ggarrange(
-        p1, p2,
-        align = "hv",
-        legend = "bottom",
-        common.legend = TRUE
-      ),
-      fig.lab = NULL,
-      fig.lab.face = "plain",
-      fig.lab.size = 0,
-      bottom = NULL,
-      top = ggpubr::text_grob(paste(title_prefix, formatted_time_selection), color = "white", size = 18),
-      left = NULL,
-      right = NULL
-    ) + theme(
-      plot.background = element_rect(fill = "black", color = "white"))
+        scale_fill_manual(values = palette) +
+        labs(x = " ", y = " ", subtitle = "Distribution") +
+        theme_dark(base_size = 15) +
+        theme(
+          text = element_text(color = "white"),
+          axis.text.y = element_blank(),
+          plot.title = element_text(hjust = 0.5),
+          plot.background = element_rect(fill = "black", color = "black"),
+          panel.background = element_rect(fill = "black"),
+          panel.grid.major = element_line(color = "grey30"),
+          panel.grid.minor = element_line(color = "grey20"),
+          legend.background = element_rect(fill = "black"),
+          legend.text = element_text(color = "white"),
+          legend.title = element_text(color = "white"),
+          legend.key = element_rect(fill = "black"),
+          plot.margin = margin(t = .5, l = 0, unit = "cm"),
+          legend.position = "bottom"
+        )
+      
+      ggpubr::annotate_figure(
+        ggpubr::ggarrange(
+          p1, p2,
+          align = "hv",
+          legend = "bottom",
+          common.legend = TRUE
+          ),
+        fig.lab = NULL,
+        fig.lab.face = "plain",
+        fig.lab.size = 0,
+        bottom = NULL,
+        top = ggpubr::text_grob(paste(title_prefix, formatted_time_selection), color = "white", size = 18),
+        left = NULL,
+        right = NULL
+        ) + 
+        theme(
+          plot.background = element_rect(fill = "black", color = "white"),
+          plot.margin = margin(t = .1, r = .05, b = 0.2, l = .05, unit = "cm")
+        )
+      }
   })
   
   output$stats_plot <- renderPlot({
     stats_reactive()
   })
-  
   
   output$descriptive_stats <- DT::renderDataTable({
     req(get_download_stats(), input$time_unit_selection)
@@ -652,35 +677,46 @@ server <- function(input, output, session) {
       "monthly" = "monthly"
     )
     
-    filtered_data <- data %>%
-      filter(!!sym(time_group) == input$time_unit_selection)
+    if (input$time_unit %in% c("weekly", "monthly")) {
+      filtered_data <- data %>%
+        filter(!!sym(time_group) == input$time_unit_selection)
+      
+      descriptive_stats <- filtered_data %>%
+        group_by(package) %>%
+        summarise(
+          mean = mean(count, na.rm = TRUE) %>% round(digits = 0),
+          `std. dev.` = sd(count, na.rm = TRUE) %>% round(digits = 1),
+          mad = mad(count, na.rm = TRUE) %>% round(digits = 1),
+          iqr = IQR(count, na.rm = TRUE) %>% round(digits = 1),
+          minimum = min(count, na.rm = TRUE),
+          q1 = quantile(count, probs = 0.25, na.rm = TRUE),
+          median = median(count, na.rm = TRUE) %>% round(digits = 0),
+          q3 = quantile(count, probs = 0.75, na.rm = TRUE),
+          maximum = max(count, na.rm = TRUE),
+          total = sum(count, na.rm = TRUE),
+          .groups = "drop"
+          ) %>%
+        arrange(desc(mean))
+      
+      DT::datatable(
+        descriptive_stats,
+        options = list(
+          pageLength = 5,
+          lengthMenu = c(5, 10, 15, 20),
+          buttons = c('copy', 'csv', 'excel'),
+          columnDefs = list(list(className = 'dt-center', targets = "_all"))
+          ),
+        extensions = 'Buttons',
+        rownames = FALSE
+        ) %>%
+        DT::formatStyle(
+          columns = names(descriptive_stats),
+          backgroundColor = "rgb(25, 25, 25)",
+          color = "white"
+        )
+      }
     
-    descriptive_stats <- filtered_data %>%
-      group_by(package) %>%
-      summarise(
-        mean = mean(count, na.rm = TRUE) %>% round(digits = 2),
-        median = median(count, na.rm = TRUE) %>% round(digits = 2),
-        sd = sd(count, na.rm = TRUE) %>% round(digits = 2),
-        iqr = IQR(count, na.rm = TRUE) %>% round(digits = 2),
-        min = min(count, na.rm = TRUE) %>% round(digits = 2),
-        max = max(count, na.rm = TRUE) %>% round(digits = 2),
-        total = sum(count, na.rm = TRUE) %>% round(digits = 2),
-        .groups = "drop"
-      ) %>%
-      arrange(desc(mean))
-    
-    DT::datatable(
-      descriptive_stats,
-      options = list(
-        pageLength = 5,
-        dom = 'tBip',
-        buttons = c('copy', 'csv', 'excel')
-      ),
-      extensions = 'Buttons',
-      rownames = FALSE
-    )
   })
-  
   
   
   ######################
