@@ -665,7 +665,7 @@ server <- function(input, output, session) {
         min = min(count, na.rm = TRUE) %>% round(digits = 2),
         max = max(count, na.rm = TRUE) %>% round(digits = 2),
         total = sum(count, na.rm = TRUE) %>% round(digits = 2),
-        .groups = "drop" # Optional: Ungroup after summarizing
+        .groups = "drop"
       ) %>%
       arrange(desc(mean))
     
