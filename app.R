@@ -568,7 +568,7 @@ server <- function(input, output, session) {
     
     p1 <- filtered_data %>%
       group_by(package) %>%
-      reframe(count = sum(count), .groups = "drop") %>%
+      summarise(count = sum(count), .groups = "drop") %>%
       ggplot() +
       aes(x = count, y = factor(package), fill = package) +
       geom_col(width = 0.8, show.legend = TRUE) +
@@ -657,15 +657,15 @@ server <- function(input, output, session) {
     
     descriptive_stats <- filtered_data %>%
       group_by(package) %>%
-      reframe(
+      summarise(
         mean = mean(count, na.rm = TRUE) %>% round(digits = 2),
         median = median(count, na.rm = TRUE) %>% round(digits = 2),
         sd = sd(count, na.rm = TRUE) %>% round(digits = 2),
         iqr = IQR(count, na.rm = TRUE) %>% round(digits = 2),
-        range = range(count) %>% round(digits = 2),
         min = min(count, na.rm = TRUE) %>% round(digits = 2),
         max = max(count, na.rm = TRUE) %>% round(digits = 2),
-        total = sum(count) %>% round(digits = 2)
+        total = sum(count, na.rm = TRUE) %>% round(digits = 2),
+        .groups = "drop" # Optional: Ungroup after summarizing
       ) %>%
       arrange(desc(mean))
     
