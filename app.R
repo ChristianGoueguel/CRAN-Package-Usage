@@ -126,6 +126,27 @@ ui <- fluidPage(
             )
           ),
         tabPanel(
+          "Stats",
+          hr(),
+          selectInput(
+            inputId = "time_unit_selection",
+            label = "Select Week or Month:",
+            choices = NULL,
+            selected = NULL
+          ),
+          br(),
+          plotOutput(
+            outputId = "stats_plot",
+            height = "400px"
+          ),
+          br(),
+          hr(),
+          DTOutput(
+            outputId = "descriptive_stats",
+            width = NULL
+            )
+        ),
+        tabPanel(
           "Network",
           hr(),
           fluidRow(
@@ -225,6 +246,22 @@ server <- function(input, output, session) {
         placeholder = 'Select packages'
         )
       )
+    
+    req(get_download_stats())
+    data <- get_download_stats()
+    time_group <- switch(
+      input$time_unit,
+      "weekly" = "weekly",
+      "monthly" = "monthly"
+    )
+    if (input$time_unit %in% c("weekly", "monthly")) {
+      updateSelectInput(
+        session,
+        "time_unit_selection",
+        choices = unique(data[[time_group]]),
+        selected = unique(data[[time_group]])[1]
+      )
+    }
     })
 
   ############################################  
@@ -496,6 +533,154 @@ server <- function(input, output, session) {
   output$peak_download_plot <- renderPlot({
     peak_download_plot_reactive()
   })
+  
+  
+  ############
+  # Stats Plot
+  ############
+  
+  stats_reactive <- reactive({
+    req(get_download_stats(), input$time_unit_selection)
+    data <- get_download_stats()
+    palette <- xcolor(data$package)
+    
+    time_group <- switch(
+      input$time_unit,
+      "weekly" = "weekly",
+      "monthly" = "monthly"
+    )
+    
+    formatted_time_selection <- if (input$time_unit == "monthly") {
+      format(as.Date(paste0(input$time_unit_selection, "-01")), "%B %Y")
+    } else {
+      date <- input$time_unit_selection
+      paste(year(date), "-", "W", isoweek(date))
+    }
+    
+    title_prefix <- if (input$time_unit == "weekly") {
+      "Downloads in the week of "
+    } else {
+      "Downloads in "
+    }
+    
+    filtered_data <- data %>%
+      filter(!!sym(time_group) == input$time_unit_selection)
+    
+    p1 <- filtered_data %>%
+      group_by(package) %>%
+      reframe(count = sum(count), .groups = "drop") %>%
+      ggplot() +
+      aes(x = count, y = factor(package), fill = package) +
+      geom_col(width = 0.8, show.legend = TRUE) +
+      scale_fill_manual(values = palette) +
+      labs(x = " ", y = " ") +
+      theme_dark(base_size = 15) +
+      theme(
+        text = element_text(color = "white"),
+        plot.title = element_text(hjust = 0.5),
+        plot.background = element_rect(fill = "black", color = "black"),
+        panel.background = element_rect(fill = "black"),
+        panel.grid.major = element_line(color = "grey30"),
+        panel.grid.minor = element_line(color = "grey20"),
+        legend.background = element_rect(fill = "black"),
+        legend.text = element_text(color = "white"),
+        legend.title = element_text(color = "white"),
+        legend.key = element_rect(fill = "black"),
+        legend.position = "bottom"
+      )
+    
+    p2 <- filtered_data %>%
+      group_by(package) %>%
+      ggplot() +
+      aes(x = count, y = factor(package), fill = package) +
+      geom_boxplot(
+        staplewidth = 0.5, 
+        color = "white",
+        outlier.fill = NULL,
+        outlier.shape = 21,
+        outlier.size = 3,
+        show.legend = TRUE
+        ) +
+      scale_fill_manual(values = palette) +
+      labs(x = " ", y = " ") +
+      theme_dark(base_size = 15) +
+      theme(
+        text = element_text(color = "white"),
+        axis.text.y = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        plot.background = element_rect(fill = "black", color = "black"),
+        panel.background = element_rect(fill = "black"),
+        panel.grid.major = element_line(color = "grey30"),
+        panel.grid.minor = element_line(color = "grey20"),
+        legend.background = element_rect(fill = "black"),
+        legend.text = element_text(color = "white"),
+        legend.title = element_text(color = "white"),
+        legend.key = element_rect(fill = "black"),
+        legend.position = "bottom"
+      )
+    
+    ggpubr::annotate_figure(
+      ggpubr::ggarrange(
+        p1, p2,
+        align = "hv",
+        legend = "bottom",
+        common.legend = TRUE
+      ),
+      fig.lab = NULL,
+      fig.lab.face = "plain",
+      fig.lab.size = 0,
+      bottom = NULL,
+      top = ggpubr::text_grob(paste(title_prefix, formatted_time_selection), color = "white", size = 18),
+      left = NULL,
+      right = NULL
+    ) + theme(
+      plot.background = element_rect(fill = "black", color = "white"))
+  })
+  
+  output$stats_plot <- renderPlot({
+    stats_reactive()
+  })
+  
+  
+  output$descriptive_stats <- DT::renderDataTable({
+    req(get_download_stats(), input$time_unit_selection)
+    data <- get_download_stats()
+    
+    time_group <- switch(
+      input$time_unit,
+      "weekly" = "weekly",
+      "monthly" = "monthly"
+    )
+    
+    filtered_data <- data %>%
+      filter(!!sym(time_group) == input$time_unit_selection)
+    
+    descriptive_stats <- filtered_data %>%
+      group_by(package) %>%
+      reframe(
+        mean = mean(count, na.rm = TRUE) %>% round(digits = 2),
+        median = median(count, na.rm = TRUE) %>% round(digits = 2),
+        sd = sd(count, na.rm = TRUE) %>% round(digits = 2),
+        iqr = IQR(count, na.rm = TRUE) %>% round(digits = 2),
+        range = range(count) %>% round(digits = 2),
+        min = min(count, na.rm = TRUE) %>% round(digits = 2),
+        max = max(count, na.rm = TRUE) %>% round(digits = 2),
+        total = sum(count) %>% round(digits = 2)
+      ) %>%
+      arrange(desc(mean))
+    
+    DT::datatable(
+      descriptive_stats,
+      options = list(
+        pageLength = 5,
+        dom = 'tBip',
+        buttons = c('copy', 'csv', 'excel')
+      ),
+      extensions = 'Buttons',
+      rownames = FALSE
+    )
+  })
+  
   
   
   ######################
