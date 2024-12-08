@@ -30,7 +30,7 @@ ui <- fluidPage(
     "))
   ),
   titlePanel(
-    title = "CRAN Package Usage", 
+    title = "CRAN Package Usage",
     windowTitle = "CRAN Package Usage App"
     ),
   sidebarLayout(
@@ -104,7 +104,7 @@ ui <- fluidPage(
             )
           ),
         tabPanel(
-          "Peak Usage",
+          "Peaks",
           hr(),
           numericInput(
             inputId = "numbPeak", 
@@ -126,6 +126,14 @@ ui <- fluidPage(
             width = NULL
             )
           ),
+        tabPanel(
+          "Trends",
+          hr(),
+          DTOutput(
+            outputId = "trends_data",
+            width = NULL
+            )
+        ),
         tabPanel(
           "Statistics",
           hr(),
@@ -544,6 +552,111 @@ server <- function(input, output, session) {
     peak_download_plot_reactive()
   })
   
+  #########
+  # Trends
+  #########
+  
+  format_percentage <- function(current, previous) {
+    if (is.na(current) || is.na(previous) || previous == 0) {
+      return("<span style='color:yellow'>N/A ↔</span>")
+    }
+    change <- (current - previous) / previous * 100
+    if (change > 0) {
+      color <- "green"
+      arrow <- "↑"
+    } else if (change < 0) {
+      color <- "red"
+      arrow <- "↓"
+    } else {
+      color <- "yellow"
+      arrow <- "↔"
+    }
+    sprintf("<span style='color:%s'>%.2f%% %s</span>", color, abs(change), arrow)
+  }
+  
+  trends_data <- reactive({
+    req(input$package_name)
+    packages <- input$package_name
+    
+    res <- lapply(packages, function(pkg) {
+      tryCatch({
+        last_week <- sum(cran_downloads(pkg, from = Sys.Date() - 7, to = Sys.Date())$count)
+        prev_week <- sum(cran_downloads(pkg, from = Sys.Date() - 14, to = Sys.Date() - 7)$count)
+        last_2week <- sum(cran_downloads(pkg, from = Sys.Date() - 14, to = Sys.Date())$count)
+        prev_2week <- sum(cran_downloads(pkg, from = Sys.Date() - 28, to = Sys.Date() - 14)$count)
+        last_month <- sum(cran_downloads(pkg, from = Sys.Date() - 31, to = Sys.Date())$count)
+        prev_month <- sum(cran_downloads(pkg, from = Sys.Date() - 62, to = Sys.Date() - 31)$count)
+        last_3months <- sum(cran_downloads(pkg, from = Sys.Date() - 92, to = Sys.Date())$count)
+        prev_3months <- sum(cran_downloads(pkg, from = Sys.Date() - 183, to = Sys.Date() - 92)$count)
+        last_6months <- sum(cran_downloads(pkg, from = Sys.Date() - 183, to = Sys.Date())$count)
+        prev_6months <- sum(cran_downloads(pkg, from = Sys.Date() - 365, to = Sys.Date() - 183)$count)
+        last_year <- sum(cran_downloads(pkg, from = Sys.Date() - 365, to = Sys.Date())$count)
+        prev_year <- sum(cran_downloads(pkg, from = Sys.Date() - 730, to = Sys.Date() - 365)$count)
+        last_2year <- sum(cran_downloads(pkg, from = Sys.Date() - 730, to = Sys.Date())$count)
+        prev_2year <- sum(cran_downloads(pkg, from = Sys.Date() - 1460, to = Sys.Date() - 730)$count)
+        
+        data.frame(
+          Package = pkg,
+          `1 WK` = format_percentage(last_week, prev_week),
+          `2 WK` = format_percentage(last_2week, prev_2week),
+          `1 MO` = format_percentage(last_month, prev_month),
+          `3 MO` = format_percentage(last_3months, prev_3months),
+          `6 MO` = format_percentage(last_6months, prev_6months),
+          `1 YR` = format_percentage(last_year, prev_year),
+          `2 YR` = format_percentage(last_2year, prev_2year),
+          stringsAsFactors = FALSE
+        )
+      }, error = function(e) {
+        data.frame(
+          Package = pkg,
+          `1 WK` = "<span style='color:yellow'>Error ↔</span>",
+          `2 WK` = "<span style='color:yellow'>Error ↔</span>",
+          `1 MO` = "<span style='color:yellow'>Error ↔</span>",
+          `3 MO` = "<span style='color:yellow'>Error ↔</span>",
+          `6 MO` = "<span style='color:yellow'>Error ↔</span>",
+          `1 YR` = "<span style='color:yellow'>Error ↔</span>",
+          `2 YR` = "<span style='color:yellow'>Error ↔</span>",
+          stringsAsFactors = FALSE
+        )
+      })
+    })
+    do.call(rbind, res)
+  })
+  
+  output$trends_data <- DT::renderDataTable({
+    req(trends_data())
+    data <- trends_data()
+    data <- data %>%
+      rename(
+        `1 WK` = X1.WK, 
+        `2 WK` = X2.WK, 
+        `1 MO` = X1.MO, 
+        `3 MO` = X3.MO, 
+        `6 MO` = X6.MO, 
+        `1 YR` = X1.YR, 
+        `2 YR` = X2.YR
+      )
+    
+    DT::datatable(
+      data,
+      options = list(
+        pageLength = 10,
+        autoWidth = FALSE,
+        lengthMenu = c(10, 15, 20),
+        buttons = c('copy', 'csv', 'excel'),
+        columnDefs = list(list(className = 'dt-center', targets = "_all"))
+      ),
+      escape = FALSE,
+      extensions = 'Buttons',
+      rownames = FALSE
+    ) %>%
+      DT::formatStyle(
+        columns = names(data),
+        backgroundColor = "rgb(25, 25, 25)",
+        color = "white"
+      )
+  })
+  
   
   ############
   # Stats Plot
@@ -591,7 +704,7 @@ server <- function(input, output, session) {
         summarise(count = sum(count), .groups = "drop") %>%
         ggplot() +
         aes(x = count, y = factor(package), fill = package) +
-        geom_col(width = 0.8, show.legend = TRUE) +
+        geom_col(width = .3, show.legend = TRUE) +
         scale_fill_manual(values = palette) +
         labs(x = " ", y = " ", subtitle = "Total Downloads") +
         theme_dark(base_size = 15) +
@@ -615,6 +728,7 @@ server <- function(input, output, session) {
         ggplot() +
         aes(x = count, y = factor(package), fill = package) +
         geom_boxplot(
+          width = .3,
           staplewidth = 0.5, 
           color = "white",
           outlier.fill = NULL,
@@ -688,7 +802,7 @@ server <- function(input, output, session) {
           `std. dev.` = sd(count, na.rm = TRUE) %>% round(digits = 1),
           mad = mad(count, na.rm = TRUE) %>% round(digits = 1),
           iqr = IQR(count, na.rm = TRUE) %>% round(digits = 1),
-          minimum = min(count, na.rm = TRUE),
+          minimum = if (length(count) == 0 || all(is.na(count))) NA else min(count, na.rm = TRUE),
           q1 = quantile(count, probs = 0.25, na.rm = TRUE),
           median = median(count, na.rm = TRUE) %>% round(digits = 0),
           q3 = quantile(count, probs = 0.75, na.rm = TRUE),
